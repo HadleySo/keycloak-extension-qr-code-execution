@@ -1,5 +1,7 @@
 package com.hadleyso.keycloak.qrauth;
 
+import java.time.ZonedDateTime;
+
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.models.KeycloakSession;
@@ -23,9 +25,15 @@ public class QrAuthenticator implements Authenticator {
     }
 
     @Override
-    public void authenticate(AuthenticationFlowContext arg0) {
+    public void authenticate(AuthenticationFlowContext context) {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'authenticate'");
+        log.debug("QrAuthenticator.authenticate");
+        String execId = context.getExecution().getId();
+        context.forceChallenge(
+            context.form()
+                .setAttribute("QRauthExecId", execId)
+                .createForm("login-qr-code.ftl")
+        );
     }
 
     @Override
