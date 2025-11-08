@@ -7,6 +7,9 @@ import org.keycloak.authentication.Authenticator;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+
+import com.hadleyso.keycloak.qrauth.token.QrAuthenticatorActionToken;
+
 import lombok.extern.jbosslog.JBossLog;
 
 @JBossLog
@@ -28,10 +31,19 @@ public class QrAuthenticator implements Authenticator {
     public void authenticate(AuthenticationFlowContext context) {
         // TODO Auto-generated method stub
         log.debug("QrAuthenticator.authenticate");
+
+        // Create token and convert to link
+        QrAuthenticatorActionToken token = QrUtils.createActionToken(context);
+        String link = QrUtils.linkFromActionToken(context.getSession(), context.getRealm(), token);
+
+        // Get execution ID for auto-refresh form
         String execId = context.getExecution().getId();
+
+        // Show ftl template page with QR code
         context.forceChallenge(
             context.form()
                 .setAttribute("QRauthExecId", execId)
+                .setAttribute("QRauthToken", link)
                 .createForm("login-qr-code.ftl")
         );
     }

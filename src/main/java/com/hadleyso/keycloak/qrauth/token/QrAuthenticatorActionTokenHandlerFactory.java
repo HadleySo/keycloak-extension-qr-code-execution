@@ -10,32 +10,24 @@ public class QrAuthenticatorActionTokenHandlerFactory implements ActionTokenHand
 
     @Override
     public ActionTokenHandler<QrAuthenticatorActionToken> create(KeycloakSession session) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'create'");
+        return new QrAuthenticatorActionTokenHandler();
     }
 
     @Override
     public void init(Scope config) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'init'");
     }
 
     @Override
     public void postInit(KeycloakSessionFactory factory) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'postInit'");
     }
 
     @Override
     public void close() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'close'");
     }
 
     @Override
     public String getId() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getId'");
+        return QrAuthenticatorActionToken.TOKEN_ID;
     }
     
 }
