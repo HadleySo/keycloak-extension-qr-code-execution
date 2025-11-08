@@ -2,6 +2,7 @@ package com.hadleyso.keycloak.qrauth;
 
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.Authenticator;
+import org.keycloak.authentication.authenticators.util.AcrStore;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
@@ -28,8 +29,8 @@ public class QrAuthenticator implements Authenticator {
     public void authenticate(AuthenticationFlowContext context) {
         log.info("QrAuthenticator.authenticate");
 
-        AuthenticationSessionModel authSession = context.getAuthenticationSession();
-        KeycloakSession session = context.getSession();
+        final AuthenticationSessionModel authSession = context.getAuthenticationSession();
+        final KeycloakSession session = context.getSession();
         RealmModel realm = context.getRealm();
 
         UserModel user = null;
@@ -46,6 +47,11 @@ public class QrAuthenticator implements Authenticator {
         if (user != null) {
             // Attach the user to the flow
             context.setUser(user);
+
+            // Attach LoA
+            final var acrStore = new AcrStore(session, authSession);
+            acrStore.setLevelAuthenticated(Integer.valueOf(authSession.getAuthNote(QrUtils.AUTHENTICATED_LOA)));
+
             context.success();
             return;
         }

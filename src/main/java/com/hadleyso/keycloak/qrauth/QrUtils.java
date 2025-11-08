@@ -23,6 +23,7 @@ import lombok.extern.jbosslog.JBossLog;
 @JBossLog
 public class QrUtils {
     public static final String AUTHENTICATED_USER_ID = "AUTHENTICATED_USER_ID";
+    public static final String AUTHENTICATED_LOA = "AUTHENTICATED_LOA";
     public static final String JWT_REQ = "JTW_REQ_TOKEN";
 
     public static QrAuthenticatorActionToken createActionToken(

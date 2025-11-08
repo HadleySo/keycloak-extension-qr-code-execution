@@ -5,14 +5,17 @@ import java.util.Map;
 import java.util.Set;
 
 import org.keycloak.TokenVerifier;
+import org.keycloak.authentication.authenticators.util.LoAUtil;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.jose.jws.JWSInput;
 import org.keycloak.jose.jws.JWSInputException;
+import org.keycloak.models.AuthenticatedClientSessionModel;
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.Constants;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.models.UserSessionModel;
 import org.keycloak.services.ErrorPageException;
 import org.keycloak.services.Urls;
 import org.keycloak.services.managers.AppAuthManager;
@@ -199,7 +202,15 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
             AuthenticationSessionModel authSession = allSessions.get(tid);
             
             if (authSession != null) {
-                authSession.setAuthNote(QrUtils.AUTHENTICATED_USER_ID, userId);
+                // Set user
+                authSession.setAuthNote(QrUtils.AUTHENTICATED_USER_ID, userId); 
+
+                // Set LoA
+                UserSessionModel userSession = auth.getSession();
+                AuthenticatedClientSessionModel clientSession = userSession.getAuthenticatedClientSessionByClient(auth.getClient().getId());
+                int currentLoa = LoAUtil.getCurrentLevelOfAuthentication(clientSession);
+                authSession.setAuthNote(QrUtils.AUTHENTICATED_LOA, String.valueOf(currentLoa)); 
+
             } else {
                 throw new ErrorPageException(session, 
                                 Response.Status.BAD_REQUEST, 
