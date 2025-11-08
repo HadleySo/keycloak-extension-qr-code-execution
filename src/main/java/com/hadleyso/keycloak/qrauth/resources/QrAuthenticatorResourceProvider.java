@@ -5,17 +5,14 @@ import java.util.Map;
 import java.util.Set;
 
 import org.keycloak.TokenVerifier;
-import org.keycloak.authentication.authenticators.util.LoAUtil;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.jose.jws.JWSInput;
 import org.keycloak.jose.jws.JWSInputException;
-import org.keycloak.models.AuthenticatedClientSessionModel;
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.Constants;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
-import org.keycloak.models.UserSessionModel;
 import org.keycloak.services.ErrorPageException;
 import org.keycloak.services.Urls;
 import org.keycloak.services.managers.AppAuthManager;
@@ -135,6 +132,35 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
 
         // Convert to action token
         QrAuthenticatorActionToken actionToken = convertActionToken(token);
+
+        // Get remote session info
+        String sid = actionToken.getSessionId();
+        String tid = actionToken.getTabId();
+        String rid = actionToken.getRealmId();
+        RealmModel remoteRealm = session.realms().getRealm(rid);
+
+        AuthenticationSessionProvider provider = session.authenticationSessions();
+        RootAuthenticationSessionModel rootAuthSession = provider.getRootAuthenticationSession(remoteRealm, sid);
+
+        // Check if rejected
+        if (rootAuthSession != null) {
+            // Then get the tab-specific authentication session
+            Map<String, AuthenticationSessionModel> allSessions = rootAuthSession.getAuthenticationSessions();
+            AuthenticationSessionModel authSession = allSessions.get(tid);
+            
+            if (authSession != null) {
+                String rejectStatus = authSession.getAuthNote(QrUtils.REJECT); 
+                if (rejectStatus != null) {
+                    throw new ErrorPageException(session, 
+                                Response.Status.BAD_REQUEST, 
+                                Messages.EXPIRED_CODE);
+                } 
+            } else {
+                throw new ErrorPageException(session, 
+                    Response.Status.BAD_REQUEST, 
+                    Messages.EXPIRED_CODE);
+            }
+        }
         
         // Get UA
         Map<String, String> ua = actionToken.getUA();
@@ -149,13 +175,22 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
             .queryParam(Constants.TOKEN, token);
         String approveURL = builder.build().toString();
 
+            // Get reject link
+        UriBuilder builderReject = Urls.realmBase(session.getContext().getUri().getBaseUri())
+            .path(realm.getName())
+            .path(QrAuthenticatorResourceProviderFactory.getStaticId())
+            .path(QrAuthenticatorResourceProvider.class, "rejectRemote")
+            .queryParam(Constants.TOKEN, token);
+        String rejectURL = builderReject.build().toString();
 
         // Create form
         LoginFormsProvider form = session.getProvider(LoginFormsProvider.class);
         form.setAttribute("approveURL", approveURL);
+        form.setAttribute("rejectURL", rejectURL);
         form.setAttribute("ua_os", ua.get("ua_os"));
         form.setAttribute("ua_device", ua.get("ua_device"));
         form.setAttribute("ua_agent", ua.get("ua_agent"));
+        form.setAttribute("tabId", actionToken.getTabId());
 
         return form.createForm("qr-login-verify.ftl");
 
@@ -167,6 +202,38 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
     @Produces(MediaType.TEXT_HTML)
 	public Response approveRemote(@QueryParam(Constants.TOKEN) String token) {   
         log.info("QrAuthenticatorResourceProvider.approveRemote");
+        
+        // Convert to action token
+        QrAuthenticatorActionToken actionToken = convertActionToken(token);
+
+        // Get remote session info
+        String sid = actionToken.getSessionId();
+        String tid = actionToken.getTabId();
+        String rid = actionToken.getRealmId();
+        RealmModel remoteRealm = session.realms().getRealm(rid);
+
+        AuthenticationSessionProvider provider = session.authenticationSessions();
+        RootAuthenticationSessionModel rootAuthSession = provider.getRootAuthenticationSession(remoteRealm, sid);
+
+        // Check if rejected
+        if (rootAuthSession != null) {
+            // Then get the tab-specific authentication session
+            Map<String, AuthenticationSessionModel> allSessions = rootAuthSession.getAuthenticationSessions();
+            AuthenticationSessionModel authSession = allSessions.get(tid);
+            
+            if (authSession != null) {
+                String rejectStatus = authSession.getAuthNote(QrUtils.REJECT); 
+                if (rejectStatus != null) {
+                    throw new ErrorPageException(session, 
+                                Response.Status.BAD_REQUEST, 
+                                Messages.EXPIRED_CODE);
+                } 
+            } else {
+                throw new ErrorPageException(session, 
+                    Response.Status.BAD_REQUEST, 
+                    Messages.EXPIRED_CODE);
+            }
+        }
 
         // Verify token
         QrAuthenticatorActionToken tokenVerified = null;
@@ -204,21 +271,8 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
                                 Response.Status.BAD_REQUEST, 
                                 Messages.INTERNAL_SERVER_ERROR);
         }
-
-        // Convert to action token
-        QrAuthenticatorActionToken actionToken = convertActionToken(token);
         
         
-        // Get remote session info
-        String sid = actionToken.getSessionId();
-        String tid = actionToken.getTabId();
-        String rid = actionToken.getRealmId();
-
-        RealmModel remoteRealm = session.realms().getRealm(rid);
-
-        AuthenticationSessionProvider provider = session.authenticationSessions();
-        RootAuthenticationSessionModel rootAuthSession = provider.getRootAuthenticationSession(remoteRealm, sid);
-
         // Set remote session to valid
         if (rootAuthSession != null) {
             // Then get the tab-specific authentication session
@@ -248,6 +302,38 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
         return Response.seeOther(builder.build()).build();
     }
 
+
+    @GET
+    @Path("reject")
+    @Produces(MediaType.TEXT_HTML)
+	public Response rejectRemote(@QueryParam(Constants.TOKEN) String token) {  
+        // Convert to action token
+        QrAuthenticatorActionToken actionToken = convertActionToken(token); 
+
+        // Get realm
+        RealmModel realm = session.realms().getRealm(actionToken.getRealmId());
+
+        // Get remote session info
+        String sid = actionToken.getSessionId();
+        String tid = actionToken.getTabId();
+
+        AuthenticationSessionProvider provider = session.authenticationSessions();
+        RootAuthenticationSessionModel rootAuthSession = provider.getRootAuthenticationSession(realm, sid);
+
+        // Set remote session to valid
+        if (rootAuthSession != null) {
+            // Then get the tab-specific authentication session
+            Map<String, AuthenticationSessionModel> allSessions = rootAuthSession.getAuthenticationSessions();
+            AuthenticationSessionModel authSession = allSessions.get(tid);
+            
+            if (authSession != null) {
+                authSession.setAuthNote(QrUtils.REJECT, QrUtils.REJECT); 
+                log.info("QrAuthenticatorResourceProvider.rejectRemote " + sid);
+            }
+        }
+
+        return session.getProvider(LoginFormsProvider.class).createForm("qr-login-canceled.ftl");
+    }
 
     @GET
     @Path("success")

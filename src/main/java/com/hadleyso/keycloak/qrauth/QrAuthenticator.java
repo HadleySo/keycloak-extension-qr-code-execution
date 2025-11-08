@@ -39,8 +39,13 @@ public class QrAuthenticator implements Authenticator {
             // Retrieve the note by key
             String authOkUserId = authSession.getAuthNote(QrUtils.AUTHENTICATED_USER_ID);
 
+            // Check if reject then cancel
+            String reject = authSession.getAuthNote(QrUtils.REJECT);
+            if (reject == QrUtils.REJECT) {
+                context.cancelLogin();
+            }
+
             if (authOkUserId != null) {
-                log.info("QrAuthenticator.action 4");
                 user = session.users().getUserById(realm, authOkUserId);
             } 
         } 
@@ -68,11 +73,15 @@ public class QrAuthenticator implements Authenticator {
         // Get execution ID for auto-refresh form
         String execId = context.getExecution().getId();
 
+        // Get TabID
+        String tabId = authSession.getTabId();
+
         // Show ftl template page with QR code
         context.forceChallenge(
             context.form()
                 .setAttribute("QRauthExecId", execId)
                 .setAttribute("QRauthToken", link)
+                .setAttribute("tabId", tabId)
                 .createForm("qr-login-scan.ftl")
         );
     }

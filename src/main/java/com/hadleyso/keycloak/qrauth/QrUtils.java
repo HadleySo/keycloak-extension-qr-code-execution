@@ -26,6 +26,7 @@ import ua_parser.Client;
 public class QrUtils {
     public static final String AUTHENTICATED_USER_ID = "AUTHENTICATED_USER_ID";
     public static final String JWT_REQ = "JTW_REQ_TOKEN";
+    public static final String REJECT = "REJECT";
 
 
     public static QrAuthenticatorActionToken createActionToken(

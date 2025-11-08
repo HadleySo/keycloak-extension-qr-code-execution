@@ -8,14 +8,18 @@
 
         <p>${msg("doQrCodeWarning")}<p>
 
-        <ul>
-            <li>OS: ${ua_os}</li>
-            <li>Device: ${ua_device}</li>
-            <li>Agent: ${ua_agent}</li>
-        </ul>
+        <p>
+            You are authorizing a session on another device <b>${ua_device}</b> running <b>${ua_os}</b> / <b>${ua_agent}</b>.
+        </p>
+
+        <p style="padding-top: 15px; padding-bottom: 15px;">Session: <b>${tabId}</b></p>
 
         <a type="button" href="${approveURL}" class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonLargeClass!}">
-            ${msg("doLogIn")}
+            ${msg("doAccept")}
+        </a>
+
+        <a type="button" href="${rejectURL}" class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonLargeClass!}">
+            ${msg("doDecline")}
         </a>
         
     </#if>
