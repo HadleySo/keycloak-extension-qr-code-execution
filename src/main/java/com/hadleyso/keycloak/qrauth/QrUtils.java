@@ -24,6 +24,7 @@ import lombok.extern.jbosslog.JBossLog;
 @JBossLog
 public class QrUtils {
     public static final String AUTHENTICATED_USER_ID = "AUTHENTICATED_USER_ID";
+    public static final String JWT_REQ = "JTW_REQ_TOKEN";
 
     public static QrAuthenticatorActionToken createActionToken(
         AuthenticationFlowContext context) {
@@ -47,7 +48,7 @@ public class QrUtils {
     public static String linkFromActionToken(KeycloakSession session, RealmModel realm, QrAuthenticatorActionToken token) {
         UriInfo uriInfo = session.getContext().getUri();
         String realmName = realm.getName();
-
+        
         // Exception for master realm
         if (Config.getAdminRealm().equals(realm.getName())) {
             throw new IllegalStateException(String.format("Disabled for admin / master realm: %s", Config.getAdminRealm()));

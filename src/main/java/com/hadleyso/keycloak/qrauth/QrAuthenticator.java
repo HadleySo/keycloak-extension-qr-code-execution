@@ -53,9 +53,15 @@ public class QrAuthenticator implements Authenticator {
 
         // NOT LOGGED IN
 
-        // Create token and convert to link
-        QrAuthenticatorActionToken token = QrUtils.createActionToken(context);
-        String link = QrUtils.linkFromActionToken(context.getSession(), context.getRealm(), token);
+        // Check if already made
+        String link = authSession.getAuthNote(QrUtils.JWT_REQ);
+
+        if (link == null) {
+            // Create token and convert to link
+            QrAuthenticatorActionToken token = QrUtils.createActionToken(context);
+            link = QrUtils.linkFromActionToken(context.getSession(), context.getRealm(), token);
+            authSession.setAuthNote(QrUtils.JWT_REQ, link);
+        }
 
         // Get execution ID for auto-refresh form
         String execId = context.getExecution().getId();
