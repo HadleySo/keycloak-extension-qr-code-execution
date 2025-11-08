@@ -229,12 +229,6 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
                 // Set user
                 authSession.setAuthNote(QrUtils.AUTHENTICATED_USER_ID, userId); 
 
-                // Set LoA
-                UserSessionModel userSession = auth.getSession();
-                AuthenticatedClientSessionModel clientSession = userSession.getAuthenticatedClientSessionByClient(auth.getClient().getId());
-                int currentLoa = LoAUtil.getCurrentLevelOfAuthentication(clientSession);
-                authSession.setAuthNote(QrUtils.AUTHENTICATED_LOA, String.valueOf(currentLoa)); 
-
             } else {
                 throw new ErrorPageException(session, 
                                 Response.Status.BAD_REQUEST, 

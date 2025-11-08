@@ -48,10 +48,6 @@ public class QrAuthenticator implements Authenticator {
             // Attach the user to the flow
             context.setUser(user);
 
-            // Attach LoA
-            final var acrStore = new AcrStore(session, authSession);
-            acrStore.setLevelAuthenticated(Integer.valueOf(authSession.getAuthNote(QrUtils.AUTHENTICATED_LOA)));
-
             context.success();
             return;
         }
