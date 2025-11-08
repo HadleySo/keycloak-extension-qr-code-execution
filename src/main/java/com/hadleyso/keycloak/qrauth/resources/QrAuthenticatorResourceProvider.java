@@ -9,10 +9,14 @@ import org.keycloak.models.ClientModel;
 import org.keycloak.models.Constants;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
+import org.keycloak.models.UserModel;
 import org.keycloak.services.Urls;
+import org.keycloak.services.managers.AuthenticationSessionManager;
 import org.keycloak.services.resource.RealmResourceProvider;
+import org.keycloak.sessions.AuthenticationSessionModel;
+import org.keycloak.sessions.AuthenticationSessionProvider;
 
-
+import com.hadleyso.keycloak.qrauth.QrUtils;
 import com.hadleyso.keycloak.qrauth.token.QrAuthenticatorActionToken;
 
 import lombok.extern.jbosslog.JBossLog;
@@ -45,7 +49,7 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
         log.info("QrAuthenticatorResourceProvider.loginWithQrCode");
         
 
-        // Verify token first
+        // Verify token
         QrAuthenticatorActionToken tokenVerified = null;
         try {
             // request.token is the raw JWT string
@@ -72,7 +76,8 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
         UriBuilder builder = Urls.realmBase(session.getContext().getUri().getBaseUri())
                 .path(realm.getName())
                 .path(QrAuthenticatorResourceProviderFactory.getStaticId())
-                .path(QrAuthenticatorResourceProvider.class, "approveRemote");
+                .path(QrAuthenticatorResourceProvider.class, "approveRemote")
+                .queryParam(Constants.TOKEN, token);
         
         String redirectURI = builder.build(realm.getName()).toString();
 
@@ -107,7 +112,65 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
     @GET
     @Path("approve")
     @Produces(MediaType.TEXT_HTML)
-	public Response approveRemote(@QueryParam(Constants.TOKEN) String token) {        
+	public Response approveRemote(@QueryParam(Constants.TOKEN) String token) {   
+        
+        // Verify token
+        QrAuthenticatorActionToken tokenVerified = null;
+        try {
+            // request.token is the raw JWT string
+            tokenVerified = TokenVerifier
+                    .create(token, QrAuthenticatorActionToken.class)
+                    .withChecks(TokenVerifier.IS_ACTIVE)   // validate exp, iat, etc.
+                    .getToken();
+
+        } catch (Exception e) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                        .entity("Invalid token: " + e.getMessage()).build();
+        } 
+        
+        if (tokenVerified == null) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                        .entity("Invalid token").build();
+        }
+
+        // Get user
+        UserModel user = session.getContext().getAuthenticationSession() != null
+                ? session.getContext().getAuthenticationSession().getAuthenticatedUser()
+                : null;
+
+            
+        // Verify user valid
+        String userId = null;
+        if (user != null) {
+            userId = user.getId();
+        } else {
+            return null; 
+        }
+
+        // Get remote session info
+        String sid = tokenVerified.getSessionId();
+        String tid = tokenVerified.getTabId();
+
+        // Set remote session to valid
+        RealmModel realm = session.realms().getRealm(tokenVerified.getRealmId());
+        AuthenticationSessionProvider provider = session.authenticationSessions();
+        var rootAuthSession = provider.getRootAuthenticationSession(realm, sid);
+
+        ClientModel remoteClient = session.clients().getClientByClientId(realm, tokenVerified.getClientId());
+
+        if (rootAuthSession != null) {
+            // Then get the tab-specific authentication session
+            AuthenticationSessionModel authSession = rootAuthSession.getAuthenticationSession(remoteClient, tid);
+
+            if (authSession != null) {
+                authSession.setAuthNote(QrUtils.AUTHENTICATED_USER_ID, userId);
+            } else {
+                throw new IllegalStateException("No tab found for that session");
+            }
+        } else {
+            throw new IllegalStateException("No root authentication session found for id=" + sid);
+        }
+
         return Response.seeOther(URI.create("http://localhost:8080/realms/master/account")).build();
     }
 
