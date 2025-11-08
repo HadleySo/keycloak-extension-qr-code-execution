@@ -1,7 +1,5 @@
 package com.hadleyso.keycloak.qrauth;
 
-import java.time.ZonedDateTime;
-
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.models.KeycloakSession;

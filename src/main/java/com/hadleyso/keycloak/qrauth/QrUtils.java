@@ -9,11 +9,12 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.services.Urls;
-import org.keycloak.services.resources.LoginActionsService;
-import org.keycloak.services.resources.RealmsResource;
 import org.keycloak.sessions.AuthenticationSessionModel;
+import org.keycloak.models.ClientModel;
 import org.keycloak.models.Constants;
 
+import com.hadleyso.keycloak.qrauth.resources.QrAuthenticatorResourceProvider;
+import com.hadleyso.keycloak.qrauth.resources.QrAuthenticatorResourceProviderFactory;
 import com.hadleyso.keycloak.qrauth.token.QrAuthenticatorActionToken;
 
 import jakarta.ws.rs.core.UriBuilder;
@@ -27,30 +28,39 @@ public class QrUtils {
             AuthenticationSessionModel authSession = context.getAuthenticationSession();
             String tabId = authSession.getTabId();
             String nonce = authSession.getClientNote(OIDCLoginProtocol.NONCE_PARAM);
-            
+            RealmModel realm = authSession.getRealm();
+            ClientModel client = authSession.getClient();
             int expirationTimeInSecs = Time.currentTime() + 300;
 
-            QrAuthenticatorActionToken token = new QrAuthenticatorActionToken(authSession, tabId, nonce, expirationTimeInSecs);
+            QrAuthenticatorActionToken token = new QrAuthenticatorActionToken(
+                                                    authSession, 
+                                                    tabId, 
+                                                    realm,
+                                                    client,
+                                                    nonce, 
+                                                    expirationTimeInSecs);
             return token;
     }
 
     public static String linkFromActionToken(KeycloakSession session, RealmModel realm, QrAuthenticatorActionToken token) {
         UriInfo uriInfo = session.getContext().getUri();
+        String realmName = realm.getName();
 
         // Exception for master realm
         if (Config.getAdminRealm().equals(realm.getName())) {
             throw new IllegalStateException(String.format("Disabled for admin / master realm: %s", Config.getAdminRealm()));
         }
 
-        UriBuilder builder = actionTokenBuilder(uriInfo.getBaseUri(), token.serialize(session, realm, uriInfo));
+        UriBuilder builder = actionTokenBuilder(uriInfo.getBaseUri(), token.serialize(session, realm, uriInfo), realmName);
 
         return builder.build(realm.getName()).toString();
     }
 
-    private static UriBuilder actionTokenBuilder(URI baseUri, String tokenString) {
+    private static UriBuilder actionTokenBuilder(URI baseUri, String tokenString, String realmName) {
         return Urls.realmBase(baseUri)
-                .path(RealmsResource.class, "getLoginActionsService")
-                .path(LoginActionsService.class, "executeActionToken")
-                .queryParam(Constants.KEY, tokenString);
+                .path(realmName)
+                .path(QrAuthenticatorResourceProviderFactory.getStaticId())
+                .path(QrAuthenticatorResourceProvider.class, "loginWithQrCode")
+                .queryParam(Constants.TOKEN, tokenString);
     }
 }

@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="jakarta.enterprise.inject.spi">
+</beans>
