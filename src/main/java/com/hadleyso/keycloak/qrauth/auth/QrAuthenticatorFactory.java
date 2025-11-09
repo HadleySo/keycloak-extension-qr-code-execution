@@ -1,4 +1,4 @@
-package com.hadleyso.keycloak.qrauth;
+package com.hadleyso.keycloak.qrauth.auth;
 
 import java.util.ArrayList;
 import java.util.List;

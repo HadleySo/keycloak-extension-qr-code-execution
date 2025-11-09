@@ -1,1 +1,1 @@
-com.hadleyso.keycloak.qrauth.QrAuthenticatorFactory
+com.hadleyso.keycloak.qrauth.auth.QrAuthenticatorFactory

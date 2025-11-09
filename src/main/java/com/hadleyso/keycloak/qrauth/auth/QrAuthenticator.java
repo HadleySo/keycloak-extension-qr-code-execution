@@ -1,4 +1,4 @@
-package com.hadleyso.keycloak.qrauth;
+package com.hadleyso.keycloak.qrauth.auth;
 
 import java.time.ZonedDateTime;
 
@@ -14,6 +14,7 @@ import org.keycloak.services.managers.BruteForceProtector;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.utils.StringUtil;
 
+import com.hadleyso.keycloak.qrauth.QrUtils;
 import com.hadleyso.keycloak.qrauth.token.QrAuthenticatorActionToken;
 
 import jakarta.ws.rs.core.UriInfo;
