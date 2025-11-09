@@ -91,9 +91,12 @@ public class QrAuthenticator implements Authenticator {
         String tabId = authSession.getTabId();
 
         // Get refresh rate
-        int refreshRate = Integer.valueOf(config.getConfig().get("refresh.rate"));
-        if (refreshRate < 0) {
-            refreshRate = 0;
+        int refreshRate = 15;
+        if (config != null) {
+            refreshRate = Integer.valueOf(config.getConfig().get("refresh.rate"));
+            if (refreshRate < 0) {
+                refreshRate = 0;
+            }
         }
 
         // Show ftl template page with QR code
@@ -132,11 +135,14 @@ public class QrAuthenticator implements Authenticator {
         } 
 
         AuthenticatorConfigModel config = context.getAuthenticatorConfig();
-        int timeoutRate = Integer.valueOf(config.getConfig().get("timeout.rate"));
+        int timeoutRate = 300;
+        if (config != null) {
+            timeoutRate = Integer.valueOf(config.getConfig().get("timeout.rate"));
 
-        if (timeoutRate > 0) {
-            ZonedDateTime maxTimestamp = ZonedDateTime.now().plusSeconds(timeoutRate);
-            authSession.setAuthNote(QrUtils.TIMEOUT, maxTimestamp.toString());
+            if (timeoutRate > 0) {
+                ZonedDateTime maxTimestamp = ZonedDateTime.now().plusSeconds(timeoutRate);
+                authSession.setAuthNote(QrUtils.TIMEOUT, maxTimestamp.toString());
+            }
         }
         
         return false;
