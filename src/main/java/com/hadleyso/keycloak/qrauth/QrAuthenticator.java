@@ -2,7 +2,6 @@ package com.hadleyso.keycloak.qrauth;
 
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.Authenticator;
-import org.keycloak.authentication.authenticators.util.AcrStore;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
@@ -43,6 +42,8 @@ public class QrAuthenticator implements Authenticator {
             String reject = authSession.getAuthNote(QrUtils.REJECT);
             if (reject == QrUtils.REJECT) {
                 context.cancelLogin();
+                context.clearUser();
+                return;
             }
 
             if (authOkUserId != null) {
@@ -77,7 +78,7 @@ public class QrAuthenticator implements Authenticator {
         String tabId = authSession.getTabId();
 
         // Show ftl template page with QR code
-        context.forceChallenge(
+        context.challenge(
             context.form()
                 .setAttribute("QRauthExecId", execId)
                 .setAttribute("QRauthToken", link)

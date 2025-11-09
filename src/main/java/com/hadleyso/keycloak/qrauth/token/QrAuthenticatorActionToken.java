@@ -88,6 +88,7 @@ public class QrAuthenticatorActionToken extends DefaultActionToken {
         return null;
     }
 
+    @SuppressWarnings("unused")
     private QrAuthenticatorActionToken() {
         // Class must have a private constructor without any arguments. This is necessary
         // to deserialize the token class from JWT.
