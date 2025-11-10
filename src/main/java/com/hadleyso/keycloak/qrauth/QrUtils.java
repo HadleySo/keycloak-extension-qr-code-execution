@@ -156,7 +156,13 @@ public class QrUtils {
             builder.queryParam(QrUtils.REQUEST_SOURCE_QUERY, true);
         }
         
-        return builder.build(realm.getName()).toString();
+        String url = builder.build(realm.getName()).toString();
+
+        // https://github.com/davidshimjs/qrcodejs/issues/78
+        if (url.length() >= 192 && url.length() <= 220) {
+            url = url + "&davidshimjs-qrcodejs=issue28";
+        }
+        return url;
     }
 
     private static UriBuilder actionTokenBuilder(URI baseUri, String tokenString, String realmName) {
