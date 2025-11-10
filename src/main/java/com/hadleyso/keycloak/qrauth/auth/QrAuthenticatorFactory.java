@@ -1,5 +1,6 @@
 package com.hadleyso.keycloak.qrauth.auth;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -23,6 +24,20 @@ public class QrAuthenticatorFactory implements AuthenticatorFactory {
         AuthenticationExecutionModel.Requirement.ALTERNATIVE,
         AuthenticationExecutionModel.Requirement.DISABLED
     };
+
+    private static final List<ProviderConfigProperty> properties = new ArrayList<ProviderConfigProperty>(QrUtils.configProperties);
+
+    static {
+        ProviderConfigProperty alignmentProperty = new ProviderConfigProperty();
+        alignmentProperty.setName("display.alignment");
+        alignmentProperty.setLabel("QR Code Alignment");
+        alignmentProperty.setType(ProviderConfigProperty.LIST_TYPE);
+        alignmentProperty.setHelpText("How to align the QR code.");
+        alignmentProperty.setOptions(Arrays.asList("Left", "Center", "Right"));
+        alignmentProperty.setRequired(true);
+        properties.add(alignmentProperty);
+    }
+        
 
 
     @Override
@@ -74,16 +89,6 @@ public class QrAuthenticatorFactory implements AuthenticatorFactory {
 
     @Override
     public List<ProviderConfigProperty> getConfigProperties() {
-        List<ProviderConfigProperty> properties = QrUtils.configProperties;
-
-        ProviderConfigProperty refreshProperty = new ProviderConfigProperty();
-        refreshProperty.setName("display.alignment");
-        refreshProperty.setLabel("QR Code Alignment");
-        refreshProperty.setType(ProviderConfigProperty.LIST_TYPE);
-        refreshProperty.setHelpText("How to align the QR code.");
-        refreshProperty.setOptions(Arrays.asList("Left", "Center", "Right"));
-        refreshProperty.setRequired(true);
-        properties.add(refreshProperty);
         
         return properties;
     }
