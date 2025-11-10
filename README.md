@@ -82,23 +82,22 @@ The [ftl templates](src/main/resources/theme-resources/templates) can be overrid
 
 Only English and German is provided, see [messages_en.properties](src/main/resources/theme-resources/messages/messages_en.properties) and [messages_de.properties](src/main/resources/theme-resources/messages/messages_de.properties).
 
-## JWT Information
+## QR Code Information
 
-The JWT encoded in the token is signed but not encrypted. It exposes the following to all users, even when unauthenticated:
+The QR code and the token encoded in the QR code exposes the following to all users, even when unauthenticated:
 
-- Realm URL
-- Realm Name
-- Realm ID
 - Keycloak public FQDN
+- Realm Name
+- Keycloak session ID
+- Keycloak tab ID
+
+It exposes the following to authenticated users:
+
 - Originating device user agent OS
 - Originating device user agent device
 - Originating device user agent agent name
 - Originating device locale (Accept-Language header)
 - Originating device locale language name, country name, and variant, localized
-- Keycloak session ID
-- Keycloak tab ID
-- Issuance time / authentication start time
-- Type (static, the unique ID of this authentication provider)
 <!-- - Originating device IANA time zone name (eg Atlantic/Reykjavik) -->
 
 

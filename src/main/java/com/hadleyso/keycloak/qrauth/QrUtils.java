@@ -1,20 +1,22 @@
 package com.hadleyso.keycloak.qrauth;
 
+import java.io.IOException;
 import java.net.URI;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.common.ClientConnection;
-import org.keycloak.common.util.Time;
+import org.keycloak.common.util.Base64Url;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
-import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.services.Urls;
 import org.keycloak.services.managers.BruteForceProtector;
@@ -25,11 +27,14 @@ import org.keycloak.models.Constants;
 
 import com.hadleyso.keycloak.qrauth.resources.QrAuthenticatorResourceProvider;
 import com.hadleyso.keycloak.qrauth.resources.QrAuthenticatorResourceProviderFactory;
-import com.hadleyso.keycloak.qrauth.token.QrAuthenticatorActionToken;
 
 import jakarta.ws.rs.core.UriBuilder;
 import jakarta.ws.rs.core.UriInfo;
 import lombok.extern.jbosslog.JBossLog;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import ua_parser.Parser;
 import ua_parser.Client;
 
@@ -37,9 +42,17 @@ import ua_parser.Client;
 public class QrUtils {
     public static final String AUTHENTICATED_USER_ID = "AUTHENTICATED_USER_ID";
     public static final String BRUTE_FORCE_USER_ID = "BRUTE_FORCE_USER_ID";
-    public static final String JWT_REQ = "JTW_REQ_TOKEN";
+    public static final String NOTE_QR_LINK = "QR-LINK-PUBLIC";
     public static final String REJECT = "REJECT";
     public static final String TIMEOUT = "TIMEOUT";
+
+    public static final String ORIGIN_UA_AGENT = "QR-UA_AGENT";
+    public static final String ORIGIN_UA_OS = "QR-UA_OS";
+    public static final String ORIGIN_UA_DEVICE = "QR-UA_DEVICE";
+    public static final String ORIGIN_LOCALE = "QR-ORI_LOCALE";
+
+    public static final String PUBLIC_QR_PARAM_SESSION_ID = "ida";
+    public static final String PUBLIC_QR_PARAM_TAB_ID = "idb";
 
     public static final String REQUEST_SOURCE = "REQUEST_SOURCE";
     public static final String REQUEST_SOURCE_QUERY = "qr_code_originated";
@@ -76,38 +89,59 @@ public class QrUtils {
         configProperties.add(alignmentProperty);
     }
 
-    public static QrAuthenticatorActionToken createActionToken(
-        AuthenticationFlowContext context) {
-            AuthenticationSessionModel authSession = context.getAuthenticationSession();
-            String tabId = authSession.getTabId();
-            String nonce = authSession.getClientNote(OIDCLoginProtocol.NONCE_PARAM);
-            RealmModel realm = authSession.getRealm();
-            int expirationTimeInSecs = Time.currentTime() + 300;
+    
+    public static String createPublicToken(AuthenticationFlowContext context) {
+        AuthenticationSessionModel authSession = context.getAuthenticationSession();
 
-            // Get user agent
-            String userAgent = context.getHttpRequest().getHttpHeaders().getHeaderString("User-Agent");
-            Parser uaParser = new Parser();
-            Client uaClient = uaParser.parse(userAgent);
+        // Get user agent
+        String userAgent = context.getHttpRequest().getHttpHeaders().getHeaderString("User-Agent");
+        Parser uaParser = new Parser();
+        Client uaClient = uaParser.parse(userAgent);
 
-            String ua_os = uaClient.os.family;
-            String ua_device = uaClient.device.family;
-            String ua_agent = uaClient.userAgent.family;
+        String ua_os = uaClient.os.family;
+        String ua_device = uaClient.device.family;
+        String ua_agent = uaClient.userAgent.family;
+        
+        // Get locale
+        Locale resolvedLocale = context.getSession().getContext().resolveLocale(context.getUser());
+        String local_localized = resolvedLocale.getDisplayName();
 
-            Locale resolvedLocale = context.getSession().getContext().resolveLocale(context.getUser());
-            String local_localized = resolvedLocale.getDisplayName();
+        authSession.setAuthNote(ORIGIN_UA_AGENT, ua_agent);
+        authSession.setAuthNote(ORIGIN_UA_OS, ua_os);
+        authSession.setAuthNote(ORIGIN_UA_DEVICE, ua_device);
+        authSession.setAuthNote(ORIGIN_LOCALE, local_localized);
+
+        // Create URL query parameters
+        String sid = authSession.getParentSession().getId();
+        String tid = authSession.getTabId();
+
+        Map<String, String> sessionIdInfo = new LinkedHashMap<>();
+        sessionIdInfo.put(PUBLIC_QR_PARAM_SESSION_ID, sid);
+        sessionIdInfo.put(PUBLIC_QR_PARAM_TAB_ID, tid);
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        String sessionIdInfoJson = null;
+        try {
+            sessionIdInfoJson = objectMapper.writeValueAsString(sessionIdInfo);
+        } catch (JsonProcessingException e) {
+            return null;
+        }
             
-            QrAuthenticatorActionToken token = new QrAuthenticatorActionToken(
-                                                    authSession, 
-                                                    tabId, 
-                                                    realm,
-                                                    nonce, 
-                                                    expirationTimeInSecs,
-                                                    ua_os, ua_device, ua_agent,
-                                                    local_localized);
-            return token;
+        return Base64Url.encode(sessionIdInfoJson.getBytes());
     }
 
-    public static String linkFromActionToken(KeycloakSession session, RealmModel realm, QrAuthenticatorActionToken token, Boolean usernamePasswordPage) {
+    public static Map<String, String> decodePublicToken(String token) {
+        byte[] decodedBytes = Base64Url.decode(token);
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            return objectMapper.readValue(decodedBytes, new TypeReference<Map<String, String>>() {});
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    public static String linkFromActionToken(KeycloakSession session, RealmModel realm, String token, Boolean usernamePasswordPage) {
         UriInfo uriInfo = session.getContext().getUri();
         String realmName = realm.getName();
         
@@ -116,7 +150,7 @@ public class QrUtils {
             throw new IllegalStateException(String.format("Disabled for admin / master realm: %s", Config.getAdminRealm()));
         }
 
-        UriBuilder builder = actionTokenBuilder(uriInfo.getBaseUri(), token.serialize(session, realm, uriInfo), realmName);
+        UriBuilder builder = actionTokenBuilder(uriInfo.getBaseUri(), token, realmName);
 
         if (usernamePasswordPage == true) {
             builder.queryParam(QrUtils.REQUEST_SOURCE_QUERY, true);

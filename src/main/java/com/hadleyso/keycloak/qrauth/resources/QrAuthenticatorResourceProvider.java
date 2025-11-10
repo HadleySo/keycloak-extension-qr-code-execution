@@ -4,10 +4,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import org.keycloak.TokenVerifier;
 import org.keycloak.forms.login.LoginFormsProvider;
-import org.keycloak.jose.jws.JWSInput;
-import org.keycloak.jose.jws.JWSInputException;
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.Constants;
 import org.keycloak.models.KeycloakSession;
@@ -24,7 +21,6 @@ import org.keycloak.sessions.AuthenticationSessionProvider;
 import org.keycloak.sessions.RootAuthenticationSessionModel;
 
 import com.hadleyso.keycloak.qrauth.QrUtils;
-import com.hadleyso.keycloak.qrauth.token.QrAuthenticatorActionToken;
 
 import lombok.extern.jbosslog.JBossLog;
 
@@ -56,30 +52,8 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
         log.info("QrAuthenticatorResourceProvider.loginWithQrCode");
         
 
-        // Verify token
-        QrAuthenticatorActionToken tokenVerified = null;
-        try {
-            // request.token is the raw JWT string
-            tokenVerified = TokenVerifier
-                    .create(token, QrAuthenticatorActionToken.class)
-                    .withChecks(TokenVerifier.IS_ACTIVE)   // validate exp, iat, etc.
-                    .getToken();
-
-        } catch (Exception e) {
-            throw new ErrorPageException(session, 
-                                Response.Status.BAD_REQUEST, 
-                                Messages.INVALID_REQUEST);
-        } 
-        
-        if (tokenVerified == null) {
-                throw new ErrorPageException(session, 
-                                Response.Status.BAD_REQUEST, 
-                                Messages.EXPIRED_CODE);
-        }
-
-
         // Get context realm
-        RealmModel realm = session.realms().getRealm(tokenVerified.getRealmId());
+        RealmModel realm = session.getContext().getRealm();
 
         // Build redirect path
         UriBuilder builderPath = Urls.realmBase(session.getContext().getUri().getBaseUri())
@@ -137,43 +111,39 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
 	public Response verify(@QueryParam(Constants.TOKEN) String token) {   
         log.info("QrAuthenticatorResourceProvider.verify");
 
-        // Convert to action token
-        QrAuthenticatorActionToken actionToken = convertActionToken(token);
+        final Map<String, String> decodeToken = QrUtils.decodePublicToken(token);
+
+        if (decodeToken == null) {
+            throw new ErrorPageException(session, 
+                                Response.Status.INTERNAL_SERVER_ERROR, 
+                                Messages.INVALID_PARAMETER);
+        }
 
         // Get remote session info
-        String sid = actionToken.getSessionId();
-        String tid = actionToken.getTabId();
-        String rid = actionToken.getRealmId();
-        RealmModel remoteRealm = session.realms().getRealm(rid);
+        String sid = decodeToken.get(QrUtils.PUBLIC_QR_PARAM_SESSION_ID);
+        String tid = decodeToken.get(QrUtils.PUBLIC_QR_PARAM_TAB_ID);
+        String rid = session.getContext().getRealm().getId();
 
-        AuthenticationSessionProvider provider = session.authenticationSessions();
-        RootAuthenticationSessionModel rootAuthSession = provider.getRootAuthenticationSession(remoteRealm, sid);
+        AuthenticationSessionModel originSession = getOriginSession(rid, sid, tid);
+
 
         // Check if rejected
-        if (rootAuthSession != null) {
-            // Then get the tab-specific authentication session
-            Map<String, AuthenticationSessionModel> allSessions = rootAuthSession.getAuthenticationSessions();
-            AuthenticationSessionModel authSession = allSessions.get(tid);
-            
-            if (authSession != null) {
-                String rejectStatus = authSession.getAuthNote(QrUtils.REJECT); 
-                if (rejectStatus != null) {
-                    throw new ErrorPageException(session, 
-                                Response.Status.BAD_REQUEST, 
-                                Messages.EXPIRED_CODE);
-                } 
-            } else {
+        if (originSession != null) {
+            String rejectStatus = originSession.getAuthNote(QrUtils.REJECT); 
+            if (rejectStatus != null) {
                 throw new ErrorPageException(session, 
-                    Response.Status.BAD_REQUEST, 
-                    Messages.EXPIRED_CODE);
-            }
+                            Response.Status.BAD_REQUEST, 
+                            Messages.EXPIRED_CODE);
+            } 
+        } else {
+            throw new ErrorPageException(session, 
+                Response.Status.BAD_REQUEST, 
+                Messages.EXPIRED_CODE);
         }
-        
-        // Get UA
-        Map<String, String> ua = actionToken.getUA();
+
 
         // Get approve link
-        RealmModel realm = session.realms().getRealm(actionToken.getRealmId());
+        RealmModel realm = session.getContext().getRealm();
         UriBuilder builder = Urls.realmBase(session.getContext().getUri().getBaseUri())
             .path(realm.getName())
             .path(QrAuthenticatorResourceProviderFactory.getStaticId())
@@ -194,11 +164,11 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
         LoginFormsProvider form = session.getProvider(LoginFormsProvider.class);
         form.setAttribute("approveURL", approveURL);
         form.setAttribute("rejectURL", rejectURL);
-        form.setAttribute("ua_os", ua.get("ua_os"));
-        form.setAttribute("ua_device", ua.get("ua_device"));
-        form.setAttribute("ua_agent", ua.get("ua_agent"));
-        form.setAttribute("tabId", actionToken.getTabId());
-        form.setAttribute("local_localized", actionToken.getLocalLocalized());
+        form.setAttribute("ua_os", originSession.getAuthNote(QrUtils.ORIGIN_UA_OS));
+        form.setAttribute("ua_device", originSession.getAuthNote(QrUtils.ORIGIN_UA_DEVICE));
+        form.setAttribute("ua_agent", originSession.getAuthNote(QrUtils.ORIGIN_UA_AGENT));
+        form.setAttribute("tabId", tid);
+        form.setAttribute("local_localized", originSession.getAuthNote(QrUtils.ORIGIN_LOCALE));
 
         return form.createForm("qr-login-verify.ftl");
 
@@ -211,17 +181,22 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
 	public Response approveRemote(@QueryParam(Constants.TOKEN) String token) {   
         log.info("QrAuthenticatorResourceProvider.approveRemote");
         
-        // Convert to action token
-        QrAuthenticatorActionToken actionToken = convertActionToken(token);
+        final Map<String, String> decodeToken = QrUtils.decodePublicToken(token);
+
+        if (decodeToken == null) {
+            throw new ErrorPageException(session, 
+                                Response.Status.INTERNAL_SERVER_ERROR, 
+                                Messages.INVALID_PARAMETER);
+        }
 
         // Get remote session info
-        String sid = actionToken.getSessionId();
-        String tid = actionToken.getTabId();
-        String rid = actionToken.getRealmId();
+        String sid = decodeToken.get(QrUtils.PUBLIC_QR_PARAM_SESSION_ID);
+        String tid = decodeToken.get(QrUtils.PUBLIC_QR_PARAM_TAB_ID);
+        String rid = session.getContext().getRealm().getId();
 
+        AuthenticationSessionModel originSession = getOriginSession(rid, sid, tid);
 
         // Check if rejected
-        AuthenticationSessionModel originSession = getOriginSession(rid, sid, tid);
         if (originSession != null) {
             String rejectStatus = originSession.getAuthNote(QrUtils.REJECT); 
             if (rejectStatus != null) {
@@ -235,26 +210,7 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
                 Messages.EXPIRED_CODE);
         }
 
-        // Verify token
-        QrAuthenticatorActionToken tokenVerified = null;
-        try {
-            // request.token is the raw JWT string
-            tokenVerified = TokenVerifier
-                    .create(token, QrAuthenticatorActionToken.class)
-                    .withChecks(TokenVerifier.IS_ACTIVE)   // validate exp, iat, etc.
-                    .getToken();
 
-        } catch (Exception e) {
-            throw new ErrorPageException(session, 
-                                Response.Status.BAD_REQUEST, 
-                                Messages.INVALID_REQUEST);
-        } 
-        
-        if (tokenVerified == null) {
-            throw new ErrorPageException(session, 
-                                Response.Status.BAD_REQUEST, 
-                                Messages.EXPIRED_CODE);
-        }
 
         // Get user            
         RealmModel realm = session.getContext().getRealm();
@@ -290,20 +246,27 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
     @Path("reject")
     @Produces(MediaType.TEXT_HTML)
 	public Response rejectRemote(@QueryParam(Constants.TOKEN) String token) {  
-        // Convert to action token
-        QrAuthenticatorActionToken actionToken = convertActionToken(token); 
+        log.info("QrAuthenticatorResourceProvider.rejectRemote");
+
+        final Map<String, String> decodeToken = QrUtils.decodePublicToken(token);
+
+        if (decodeToken == null) {
+            throw new ErrorPageException(session, 
+                                Response.Status.INTERNAL_SERVER_ERROR, 
+                                Messages.INVALID_PARAMETER);
+        }
 
         // Get remote session info
-        String sid = actionToken.getSessionId();
-        String tid = actionToken.getTabId();
-        String rid = actionToken.getRealmId();
+        String sid = decodeToken.get(QrUtils.PUBLIC_QR_PARAM_SESSION_ID);
+        String tid = decodeToken.get(QrUtils.PUBLIC_QR_PARAM_TAB_ID);
+        String rid = session.getContext().getRealm().getId();
 
 
-        // Set remote session to valid
+        // Set remote session to invalid
         AuthenticationSessionModel originSession = getOriginSession(rid, sid, tid);
         if (originSession != null) {
             originSession.setAuthNote(QrUtils.REJECT, QrUtils.REJECT); 
-            log.info("QrAuthenticatorResourceProvider.rejectRemote " + sid);
+            log.info("QrAuthenticatorResourceProvider.rejectRemote " + rid + " " + sid + " " + tid);
         }
         return session.getProvider(LoginFormsProvider.class).createForm("qr-login-canceled.ftl");
     }
@@ -320,21 +283,6 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
         return form.createForm("qr-login-success.ftl");
     }
 
-    private QrAuthenticatorActionToken convertActionToken(String token) {
-        JWSInput jws;
-        QrAuthenticatorActionToken actionToken;
-        try {
-            jws = new JWSInput(token);
-            actionToken = jws.readJsonContent(QrAuthenticatorActionToken.class);
-        } catch (JWSInputException e) {
-            throw new ErrorPageException(session, 
-                                Response.Status.BAD_REQUEST, 
-                                Messages.EXPIRED_CODE);
-        }
-        
-        return actionToken;
-
-    }
 
     private AuthenticationSessionModel getOriginSession(String realmId, String sessionId, String tabId) {
         AuthenticationSessionProvider provider = session.authenticationSessions();

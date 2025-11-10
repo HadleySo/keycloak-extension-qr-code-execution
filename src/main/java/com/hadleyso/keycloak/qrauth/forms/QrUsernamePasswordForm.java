@@ -14,7 +14,6 @@ import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
 import com.hadleyso.keycloak.qrauth.QrUtils;
-import com.hadleyso.keycloak.qrauth.token.QrAuthenticatorActionToken;
 
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
@@ -67,13 +66,17 @@ public class QrUsernamePasswordForm extends UsernamePasswordForm {
         AuthenticatorConfigModel config = context.getAuthenticatorConfig();
 
         // Check if already made
-        String link = authSession.getAuthNote(QrUtils.JWT_REQ);
+        String link = authSession.getAuthNote(QrUtils.NOTE_QR_LINK);
 
         if (link == null) {
             // Create token and convert to link
-            QrAuthenticatorActionToken token = QrUtils.createActionToken(context);
+            String token = QrUtils.createPublicToken(context);
+            if (token == null) {
+                context.failure(AuthenticationFlowError.INTERNAL_ERROR);
+                return;
+            }
             link = QrUtils.linkFromActionToken(context.getSession(), context.getRealm(), token, true);
-            authSession.setAuthNote(QrUtils.JWT_REQ, link);
+            authSession.setAuthNote(QrUtils.NOTE_QR_LINK, link);
         }
 
         // Get execution ID for auto-refresh form

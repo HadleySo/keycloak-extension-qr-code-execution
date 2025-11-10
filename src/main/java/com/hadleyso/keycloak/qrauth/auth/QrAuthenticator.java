@@ -10,7 +10,6 @@ import org.keycloak.models.UserModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
 import com.hadleyso.keycloak.qrauth.QrUtils;
-import com.hadleyso.keycloak.qrauth.token.QrAuthenticatorActionToken;
 
 import lombok.extern.jbosslog.JBossLog;
 
@@ -71,13 +70,17 @@ public class QrAuthenticator implements Authenticator {
         // NOT LOGGED IN
 
         // Check if already made
-        String link = authSession.getAuthNote(QrUtils.JWT_REQ);
+        String link = authSession.getAuthNote(QrUtils.NOTE_QR_LINK);
 
         if (link == null) {
             // Create token and convert to link
-            QrAuthenticatorActionToken token = QrUtils.createActionToken(context);
+            String token = QrUtils.createPublicToken(context);
+            if (token == null) {
+                context.failure(AuthenticationFlowError.INTERNAL_ERROR);
+                return;
+            }
             link = QrUtils.linkFromActionToken(context.getSession(), context.getRealm(), token, false);
-            authSession.setAuthNote(QrUtils.JWT_REQ, link);
+            authSession.setAuthNote(QrUtils.NOTE_QR_LINK, link);
         }
 
         // Get execution ID for auto-refresh form
