@@ -1,1 +1,2 @@
 com.hadleyso.keycloak.qrauth.auth.QrAuthenticator
+com.hadleyso.keycloak.qrauth.forms.QrUsernamePasswordForm
