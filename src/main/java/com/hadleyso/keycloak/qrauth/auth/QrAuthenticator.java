@@ -94,6 +94,14 @@ public class QrAuthenticator implements Authenticator {
             }
         }
 
+        // Get alignment
+        String alignment = "Center";
+        if (config != null) {
+            alignment = config.getConfig().get("display.alignment");
+            if (alignment == null) alignment = "Center";
+        }
+
+
         // Show ftl template page with QR code
         context.challenge(
             context.form()
@@ -101,6 +109,7 @@ public class QrAuthenticator implements Authenticator {
                 .setAttribute("QRauthToken", link)
                 .setAttribute("tabId", tabId)
                 .setAttribute("refreshRate", refreshRate)
+                .setAttribute("alignment", alignment)
                 .createForm("qr-login-scan.ftl")
         );
     }

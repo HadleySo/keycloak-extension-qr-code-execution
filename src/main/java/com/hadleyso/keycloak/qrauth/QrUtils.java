@@ -3,6 +3,7 @@ package com.hadleyso.keycloak.qrauth;
 import java.net.URI;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.keycloak.Config;
@@ -63,6 +64,15 @@ public class QrUtils {
         timeoutProperty.setDefaultValue(300);
         timeoutProperty.setRequired(true);
         configProperties.add(timeoutProperty);
+
+        ProviderConfigProperty alignmentProperty = new ProviderConfigProperty();
+        alignmentProperty.setName("display.alignment");
+        alignmentProperty.setLabel("QR Code Alignment");
+        alignmentProperty.setType(ProviderConfigProperty.LIST_TYPE);
+        alignmentProperty.setHelpText("How to align the QR code.");
+        alignmentProperty.setOptions(Arrays.asList("Left", "Center", "Right"));
+        alignmentProperty.setRequired(true);
+        configProperties.add(alignmentProperty);
     }
 
     public static QrAuthenticatorActionToken createActionToken(

@@ -1,7 +1,6 @@
 package com.hadleyso.keycloak.qrauth.auth;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import org.keycloak.Config.Scope;
@@ -25,19 +24,7 @@ public class QrAuthenticatorFactory implements AuthenticatorFactory {
         AuthenticationExecutionModel.Requirement.DISABLED
     };
 
-    private static final List<ProviderConfigProperty> properties = new ArrayList<ProviderConfigProperty>(QrUtils.configProperties);
-
-    static {
-        ProviderConfigProperty alignmentProperty = new ProviderConfigProperty();
-        alignmentProperty.setName("display.alignment");
-        alignmentProperty.setLabel("QR Code Alignment");
-        alignmentProperty.setType(ProviderConfigProperty.LIST_TYPE);
-        alignmentProperty.setHelpText("How to align the QR code.");
-        alignmentProperty.setOptions(Arrays.asList("Left", "Center", "Right"));
-        alignmentProperty.setRequired(true);
-        properties.add(alignmentProperty);
-    }
-        
+    private static final List<ProviderConfigProperty> properties = new ArrayList<ProviderConfigProperty>(QrUtils.configProperties);        
 
 
     @Override

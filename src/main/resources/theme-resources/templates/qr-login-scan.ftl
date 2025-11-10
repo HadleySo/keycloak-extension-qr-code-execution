@@ -6,7 +6,9 @@
         ${msg("doQrCodeLogin")}
     <#elseif section = "form">
 
-        <div id="com-hadleyso-qr-auth-js-target" style="padding-top: 15px; padding-bottom: 15px;" onClick="document.forms['com-hadleyso-qrcode-${QRauthExecId}'].submit();"></div>
+        <div id="com-hadleyso-qr-auth-js-target" 
+        style='padding-top: 15px; padding-bottom: 15px; width: 45%; <#if alignment == "Center">margin-left: auto; margin-right: auto;<#elseif alignment == "Right">margin-left: auto; </#if>' 
+        onClick="document.forms['com-hadleyso-qrcode-${QRauthExecId}'].submit();"></div>
 
         <p style="padding-top: 15px; padding-bottom: 15px;"><b>Session: </b>${tabId}</p>
 
