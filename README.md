@@ -2,7 +2,7 @@
 
  [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
-Sign in to Keycloak with QR Codes.
+Sign in to Keycloak with another device using QR Codes.
 
 This authentication extension for [Keycloak](https://www.keycloak.org/) provides an authentication execution that allows users to authenticate with another device.
 
@@ -10,10 +10,36 @@ With QR code authentication, users can quickly and securely authenticate without
 
 ## Features
 
-- Provides a standard login method accessible in freemaker templates
-- Sign in page auto refreshes to continue to application after remote device approves
+There are two executions available: **QR Code Sign In** and **Username Password Form with optional QR Code login**
+
+
+Both executions provide:
+
+- Authentication execution available in browser bound flows
 - Confirmation of session id (tabID) on confirmation page
 - Confirmation of User Agent device, os, and agent on confirmation page
+
+The **QR Code Sign In** execution:
+
+- Sign in page auto refreshes to continue to application after remote device approves
+- Does not requires new ftl templates when custom themes are used
+
+<p align="center">
+    <img src="docs/img/qr-scan-login.png" width="550">
+</p>
+
+
+The **Username Password Form with optional QR Code login** execution:
+
+- Builds on the keycloak.v2 `login.ftl`
+- Requires a custom `qr-login.ftl` template if a custom theme is used (see [Template Themes](#Template-Themes))
+- Sign in page provides default username password field and optional QR code.
+
+<p align="center">
+    <img src="docs/img/qr-username-password-form.png" width="550">
+</p>
+
+
 
 ## Compatibility
 Compatible with **Keycloak 26.4.2**. Should be compatible with 26.3.0 but has not been tested.
@@ -28,16 +54,53 @@ Compatible with **Keycloak 26.4.2**. Should be compatible with 26.3.0 but has no
 
 ## Configuration
 
-**No configuration** needed, just add it to your browser flow. 
+**No configuration** needed if *Username Password Form with optional QR Code login* is not used. QR Code Sign In can just be added to your browser flow. 
 
 Optional configuration is available for **Refresh Rate** and **Login Timeout**:  
 - Refresh rate sets how often the login page reloads and checks if the user has authenticated  
 - Login timeout sets how long the user has before the flow is invalidated  
 - **Note**: If the Refresh Rate is zero or less than Login Timeout, the QR code will display even when the flow has expired/invalidated.
 
-The [ftl templates](src/main/resources/theme-resources/templates) can be overridden:
-- `qr-login-scan.ftl` requires `${url.resourcesPath}/js/qrcode.min.js` and `${url.resourcesPath}/js/jquery.min.js` for javascript, and `QRauthToken` to provide the QR Code URL
-- `qr-login-verify.ftl` requires `approveURL` to approve the sign in and `rejectURL` to reject.
+#### Template Themes
+The [ftl templates](src/main/resources/theme-resources/templates) can be overridden. This is optional, unless the *Username Password Form with optional QR Code login* execution is used with a custom theme.
+
+`qr-login.ftl` - Only used for *Username Password Form with optional QR Code login*
+- Based on login.ftl from keycloak.v2 theme
+- Requires macro import `<#import "qrLogin.ftl" as qrlogin>`
+- Render QR code `<@qrlogin.qrLogin />`
+
+`qr-login-scan.ftl` - for *QR Code Sign In* when QR code is displayed
+- requires `${url.resourcesPath}/js/qrcode.min.js` and `${url.resourcesPath}/js/jquery.min.js` for javascript
+- requires `QRauthToken` to provide the QR Code URL
+
+
+`qr-login-verify.ftl`- for *QR Code Sign In* after the user authenticates, prompts to reject or approve
+- requires `${approveURL}` to approve the sign in and `${rejectURL}` to reject.
+- optional originating device info: `${ua_device}`, `${ua_os}`, `${ua_agent}`, and `${local_localized}`
+
+#### Messages
+
+Only English and German is provided, see [messages_en.properties](src/main/resources/theme-resources/messages/messages_en.properties) and [messages_de.properties](src/main/resources/theme-resources/messages/messages_de.properties).
+
+## JWT Information
+
+The JWT encoded in the token is signed but not encrypted. It exposes the following to all users, even when unauthenticated:
+
+- Realm URL
+- Realm Name
+- Realm ID
+- Keycloak public FQDN
+- Originating device user agent OS
+- Originating device user agent device
+- Originating device user agent agent name
+- Originating device locale (Accept-Language header)
+- Originating device locale language name, country name, and variant, localized
+- Keycloak session ID
+- Keycloak tab ID
+- Issuance time / authentication start time
+- Type (static, the unique ID of this authentication provider)
+<!-- - Originating device IANA time zone name (eg Atlantic/Reykjavik) -->
+
 
 ## License  
 
