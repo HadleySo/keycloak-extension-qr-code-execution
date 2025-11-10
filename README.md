@@ -4,9 +4,9 @@
 
 Sign in to Keycloak with another device using QR Codes.
 
-This authentication extension for [Keycloak](https://www.keycloak.org/) provides an authentication execution that allows users to authenticate with another device.
+This authentication extension for [Keycloak](https://www.keycloak.org/) provides an authentication execution enabling users to complete authentication with another device.
 
-With QR code authentication, users can quickly and securely authenticate without typing passwords or sharing password on untrusted devices. It also enables easier usage of Passkeys on devices without Bluetooth.
+With QR code authentication, users can quickly and securely authenticate without typing passwords or sharing passwords on untrusted devices. It also enables usage of Passkeys on devices without Bluetooth by completing authentication with a passkey on a passkey enabled device..
 
 ## Features
 
@@ -15,14 +15,14 @@ There are two executions available: **QR Code Sign In** and **Username Password 
 
 Both executions provide:
 
-- Authentication execution available in browser bound flows
+- Authentication executions available in browser bound flows
 - Confirmation of session id (tabID) on confirmation page
-- Confirmation of User Agent device, os, and agent on confirmation page
+- Confirmation of User Agent and originating device information on the confirmation page
 
 The **QR Code Sign In** execution:
 
-- Sign in page auto refreshes to continue to application after remote device approves
-- Does not requires new ftl templates when custom themes are used
+- Sign in page refreshes automatically to check if another device has completed authentication
+- Does not require new ftl templates when custom themes are used
 
 <p align="center">
     <img src="docs/img/qr-scan-login.png" width="550">
@@ -31,8 +31,8 @@ The **QR Code Sign In** execution:
 
 The **Username Password Form with optional QR Code login** execution:
 
-- Builds on the keycloak.v2 `login.ftl`
-- Requires a custom `qr-login.ftl` template if a custom theme is used (see [Template Themes](#Template-Themes))
+- Builds on keycloak.v2 `login.ftl` template
+- Requires a custom `qr-login.ftl` template if the realm uses a custom theme (see [Template Themes](#Template-Themes))
 - Sign in page provides default username password field and optional QR code.
 
 <p align="center">
@@ -42,7 +42,7 @@ The **Username Password Form with optional QR Code login** execution:
 
 
 ## Compatibility
-Compatible with **Keycloak 26.4.2**. Should be compatible with 26.3.0 but has not been tested.
+Compatible with **Keycloak 26.4.x**. Should be compatible with 26.3.x but has not been tested.
 
 ## Installation
 
@@ -54,20 +54,20 @@ Compatible with **Keycloak 26.4.2**. Should be compatible with 26.3.0 but has no
 
 ## Configuration
 
-**No configuration** needed if *Username Password Form with optional QR Code login* is not used. QR Code Sign In can just be added to your browser flow. 
+**No configuration** needed if *Username Password Form with optional QR Code login* is not used. *QR Code Sign In* can just be added to your browser flow. 
 
 Optional configuration is available for **Refresh Rate** and **Login Timeout**:  
-- Refresh rate sets how often the login page reloads and checks if the user has authenticated  
+- Refresh rate sets how often the login page reloads to check if a user has authenticated  
 - Login timeout sets how long the user has before the flow is invalidated  
 - **Note**: If the Refresh Rate is zero or less than Login Timeout, the QR code will display even when the flow has expired/invalidated.
 
 #### Template Themes
-The [ftl templates](src/main/resources/theme-resources/templates) can be overridden. This is optional, unless the *Username Password Form with optional QR Code login* execution is used with a custom theme.
+The [ftl templates](src/main/resources/theme-resources/templates) can be overridden. This is optional, unless the *Username Password Form with optional QR Code login* execution is used in a realm with a custom theme.
 
-`qr-login.ftl` - Only used for *Username Password Form with optional QR Code login*
+`qr-login.ftl` - for *Username Password Form with optional QR Code login*
 - Based on login.ftl from keycloak.v2 theme
 - Requires macro import `<#import "qrLogin.ftl" as qrlogin>`
-- Render QR code `<@qrlogin.qrLogin />`
+- To render QR code `<@qrlogin.qrLogin />`
 
 `qr-login-scan.ftl` - for *QR Code Sign In* when QR code is displayed
 - requires `${url.resourcesPath}/js/qrcode.min.js` and `${url.resourcesPath}/js/jquery.min.js` for javascript
