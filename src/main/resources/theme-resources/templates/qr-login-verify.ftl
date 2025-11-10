@@ -9,7 +9,7 @@
         <p>${msg("doQrCodeWarning")}<p>
 
         <p>
-            You are authorizing a session on another device <b>${ua_device}</b> running <b>${ua_os}</b> / <b>${ua_agent}</b>.
+            You are authorizing a session on a <b>${ua_device}</b> running <b>${ua_os}</b> / <b>${ua_agent}</b> in locale <b>${local_localized}</b>.
         </p>
 
         <p style="padding-top: 15px; padding-bottom: 15px;">Session: <b>${tabId}</b></p>

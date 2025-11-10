@@ -17,6 +17,8 @@ public class QrAuthenticatorActionToken extends DefaultActionToken {
     private static final String JSON_FIELD_UA_OS = "ua_os";
     private static final String JSON_FIELD_UA_DEVICE = "ua_device";
     private static final String JSON_FIELD_UA_AGENT = "ua_agent";
+    private static final String JSON_FIELD_LOCAL_LOCALIZED = "local_localized";
+    
 
     public static final String TOKEN_ID = "com-hadleyso-qr-code-authenticator";
 
@@ -39,6 +41,9 @@ public class QrAuthenticatorActionToken extends DefaultActionToken {
     @JsonProperty(value = JSON_FIELD_UA_AGENT)
     private String ua_agent;
     
+    @JsonProperty(value = JSON_FIELD_LOCAL_LOCALIZED)
+    private String local_localized;
+    
 
 
     public QrAuthenticatorActionToken(
@@ -49,7 +54,8 @@ public class QrAuthenticatorActionToken extends DefaultActionToken {
         int expirationTimeInSecs,
         String ua_os,
         String ua_device,
-        String ua_agent) {
+        String ua_agent,
+        String local_localized) {
             super(null, TOKEN_ID, expirationTimeInSecs, nonce(nonce));
             this.sessionId = authSession.getParentSession().getId();
             this.tabId = tabId;
@@ -57,6 +63,7 @@ public class QrAuthenticatorActionToken extends DefaultActionToken {
             this.ua_os = ua_os;
             this.ua_device = ua_device;
             this.ua_agent = ua_agent;
+            this.local_localized = local_localized;
     }
 
     public String getSessionId() {
@@ -69,6 +76,10 @@ public class QrAuthenticatorActionToken extends DefaultActionToken {
 
     public String getRealmId() {
         return this.realmId;
+    }
+
+    public String getLocalLocalized() {
+        return this.local_localized;
     }
 
     public Map<String, String> getUA() {

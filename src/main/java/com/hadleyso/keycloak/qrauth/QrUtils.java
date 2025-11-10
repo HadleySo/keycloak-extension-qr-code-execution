@@ -5,6 +5,7 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -91,6 +92,9 @@ public class QrUtils {
             String ua_os = uaClient.os.family;
             String ua_device = uaClient.device.family;
             String ua_agent = uaClient.userAgent.family;
+
+            Locale resolvedLocale = context.getSession().getContext().resolveLocale(context.getUser());
+            String local_localized = resolvedLocale.getDisplayName();
             
             QrAuthenticatorActionToken token = new QrAuthenticatorActionToken(
                                                     authSession, 
@@ -98,7 +102,8 @@ public class QrUtils {
                                                     realm,
                                                     nonce, 
                                                     expirationTimeInSecs,
-                                                    ua_os, ua_device, ua_agent);
+                                                    ua_os, ua_device, ua_agent,
+                                                    local_localized);
             return token;
     }
 

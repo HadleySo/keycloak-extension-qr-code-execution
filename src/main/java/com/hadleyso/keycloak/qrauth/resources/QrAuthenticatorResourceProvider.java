@@ -198,6 +198,7 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
         form.setAttribute("ua_device", ua.get("ua_device"));
         form.setAttribute("ua_agent", ua.get("ua_agent"));
         form.setAttribute("tabId", actionToken.getTabId());
+        form.setAttribute("local_localized", actionToken.getLocalLocalized());
 
         return form.createForm("qr-login-verify.ftl");
 
