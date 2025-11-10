@@ -1,15 +1,24 @@
 package com.hadleyso.keycloak.qrauth;
 
 import java.net.URI;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowContext;
+import org.keycloak.common.ClientConnection;
 import org.keycloak.common.util.Time;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
+import org.keycloak.models.UserModel;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
+import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.services.Urls;
+import org.keycloak.services.managers.BruteForceProtector;
 import org.keycloak.sessions.AuthenticationSessionModel;
+import org.keycloak.utils.StringUtil;
+import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.Constants;
 
 import com.hadleyso.keycloak.qrauth.resources.QrAuthenticatorResourceProvider;
@@ -30,6 +39,27 @@ public class QrUtils {
     public static final String REJECT = "REJECT";
     public static final String TIMEOUT = "TIMEOUT";
 
+    public static final List<ProviderConfigProperty> configProperties = new ArrayList<ProviderConfigProperty>();
+
+    static {
+        ProviderConfigProperty refreshProperty = new ProviderConfigProperty();
+        refreshProperty.setName("refresh.rate");
+        refreshProperty.setLabel("Check Refresh Rate");
+        refreshProperty.setType(ProviderConfigProperty.INTEGER_TYPE);
+        refreshProperty.setHelpText("How often in seconds to reload the page to check if the authentication is approved. Zero disables refresh.");
+        refreshProperty.setDefaultValue(15);
+        refreshProperty.setRequired(true);
+        configProperties.add(refreshProperty);
+
+        ProviderConfigProperty timeoutProperty = new ProviderConfigProperty();
+        timeoutProperty.setName("timeout.rate");
+        timeoutProperty.setLabel("Login Timeout");
+        timeoutProperty.setType(ProviderConfigProperty.INTEGER_TYPE);
+        timeoutProperty.setHelpText("How long in seconds a QR code can be displayed before timeout. Zero disables timeout.");
+        timeoutProperty.setDefaultValue(300);
+        timeoutProperty.setRequired(true);
+        configProperties.add(timeoutProperty);
+    }
 
     public static QrAuthenticatorActionToken createActionToken(
         AuthenticationFlowContext context) {
@@ -79,5 +109,48 @@ public class QrUtils {
                 .path(QrAuthenticatorResourceProvider.class, "loginWithQrCode")
                 .queryParam(Constants.TOKEN, tokenString)
                 .queryParam("prompt", "login");
+    }
+
+    public static void rejectedBruteForce(AuthenticationFlowContext context) {
+        AuthenticationSessionModel authSession = context.getAuthenticationSession();
+        KeycloakSession session = context.getSession();
+
+        RealmModel realm = context.getRealm();
+        String bruteUserId = authSession.getAuthNote(QrUtils.BRUTE_FORCE_USER_ID);
+
+        ClientConnection clientConnection = session.getContext().getConnection();
+        UriInfo uriInfo = session.getContext().getUri();
+
+        if (StringUtil.isNotBlank(bruteUserId)) {
+            UserModel user = session.users().getUserById(realm, bruteUserId);
+
+            BruteForceProtector protector = session.getProvider(BruteForceProtector.class);
+            protector.failedLogin(realm, user, clientConnection, uriInfo);
+        }
+        
+    }
+
+    public static boolean timeoutPassed(AuthenticationFlowContext context) {
+        AuthenticationSessionModel authSession = context.getAuthenticationSession();
+        String timeout = authSession.getAuthNote(QrUtils.TIMEOUT);
+
+        if (StringUtil.isNotBlank(timeout)) {
+            ZonedDateTime maxTimestamp = ZonedDateTime.parse(timeout);
+            return maxTimestamp.isBefore(ZonedDateTime.now());
+
+        } 
+
+        AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+        int timeoutRate = 300;
+        if (config != null) {
+            timeoutRate = Integer.valueOf(config.getConfig().get("timeout.rate"));
+
+            if (timeoutRate > 0) {
+                ZonedDateTime maxTimestamp = ZonedDateTime.now().plusSeconds(timeoutRate);
+                authSession.setAuthNote(QrUtils.TIMEOUT, maxTimestamp.toString());
+            }
+        }
+        
+        return false;
     }
 }

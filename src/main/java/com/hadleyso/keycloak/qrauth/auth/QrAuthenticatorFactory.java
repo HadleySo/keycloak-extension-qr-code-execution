@@ -1,6 +1,6 @@
 package com.hadleyso.keycloak.qrauth.auth;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.keycloak.Config.Scope;
@@ -12,6 +12,8 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.provider.ProviderConfigProperty;
 
+import com.hadleyso.keycloak.qrauth.QrUtils;
+
 public class QrAuthenticatorFactory implements AuthenticatorFactory {
 
     public static final String PROVIDER_ID = "ext-qr-code-login";
@@ -22,27 +24,6 @@ public class QrAuthenticatorFactory implements AuthenticatorFactory {
         AuthenticationExecutionModel.Requirement.DISABLED
     };
 
-    private static final List<ProviderConfigProperty> configProperties = new ArrayList<ProviderConfigProperty>();
-
-    static {
-        ProviderConfigProperty refreshProperty = new ProviderConfigProperty();
-        refreshProperty.setName("refresh.rate");
-        refreshProperty.setLabel("Check Refresh Rate");
-        refreshProperty.setType(ProviderConfigProperty.INTEGER_TYPE);
-        refreshProperty.setHelpText("How often in seconds to reload the page to check if the authentication is approved. Zero disables refresh.");
-        refreshProperty.setDefaultValue(15);
-        refreshProperty.setRequired(true);
-        configProperties.add(refreshProperty);
-
-        ProviderConfigProperty timeoutProperty = new ProviderConfigProperty();
-        timeoutProperty.setName("timeout.rate");
-        timeoutProperty.setLabel("Login Timeout");
-        timeoutProperty.setType(ProviderConfigProperty.INTEGER_TYPE);
-        timeoutProperty.setHelpText("How long in seconds a QR code can be displayed before timeout. Zero disables timeout.");
-        timeoutProperty.setDefaultValue(300);
-        timeoutProperty.setRequired(true);
-        configProperties.add(timeoutProperty);
-    }
 
     @Override
     public void close() {
@@ -93,7 +74,18 @@ public class QrAuthenticatorFactory implements AuthenticatorFactory {
 
     @Override
     public List<ProviderConfigProperty> getConfigProperties() {
-        return configProperties;
+        List<ProviderConfigProperty> properties = QrUtils.configProperties;
+
+        ProviderConfigProperty refreshProperty = new ProviderConfigProperty();
+        refreshProperty.setName("display.alignment");
+        refreshProperty.setLabel("QR Code Alignment");
+        refreshProperty.setType(ProviderConfigProperty.LIST_TYPE);
+        refreshProperty.setHelpText("How to align the QR code.");
+        refreshProperty.setOptions(Arrays.asList("Left", "Center", "Right"));
+        refreshProperty.setRequired(true);
+        properties.add(refreshProperty);
+        
+        return properties;
     }
 
     @Override
