@@ -22,7 +22,7 @@
   <properties>
     <java.version>21</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <main.java.package>com.hadleyso.keycloak.magic</main.java.package>
+    <main.java.package>com.hadleyso.keycloak.qrauth</main.java.package>
     <keycloak.version>26.4.2</keycloak.version>
     <lombok.version>1.18.38</lombok.version>
   </properties>
