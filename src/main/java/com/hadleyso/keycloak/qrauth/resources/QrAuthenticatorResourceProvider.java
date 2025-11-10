@@ -52,7 +52,7 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
     @GET
     @Path("scan")
     @Produces(MediaType.TEXT_HTML)
-	public Response loginWithQrCode(@QueryParam(Constants.TOKEN) String token) {        
+	public Response loginWithQrCode(@QueryParam(Constants.TOKEN) String token, @QueryParam(QrUtils.REQUEST_SOURCE_QUERY) String qr_code_originated) {        
         log.info("QrAuthenticatorResourceProvider.loginWithQrCode");
         
 
@@ -119,6 +119,13 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
             .queryParam("client_id", accountClient.getClientId())
             .queryParam("redirect_uri", redirectURI)
             .queryParam("response_type", "code");
+
+                    
+        // If username password page
+        if (qr_code_originated != null) {
+            uriBuilder.queryParam(QrUtils.REQUEST_SOURCE_QUERY, "");
+        } 
+
 
         return Response.seeOther(uriBuilder.build()).build();
 
@@ -299,6 +306,7 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
             .path(realm.getName())
             .path(QrAuthenticatorResourceProviderFactory.getStaticId())
             .path(QrAuthenticatorResourceProvider.class, "successPage");
+
         return Response.seeOther(builder.build()).build();
     }
 
@@ -338,8 +346,13 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
     @GET
     @Path("success")
     @Produces(MediaType.TEXT_HTML)
-	public Response successPage(@QueryParam(Constants.TOKEN) String token) {   
-        return session.getProvider(LoginFormsProvider.class).createForm("qr-login-success.ftl");
+	public Response successPage(@QueryParam(Constants.TOKEN) String token, @QueryParam(QrUtils.REQUEST_SOURCE_QUERY) String qr_code_originated) { 
+        LoginFormsProvider form = session.getProvider(LoginFormsProvider.class);
+        
+        if (qr_code_originated != null) {
+            form.setAttribute("qr_code_originated", true);
+        }
+        return form.createForm("qr-login-success.ftl");
     }
 
     private QrAuthenticatorActionToken convertActionToken(String token) {

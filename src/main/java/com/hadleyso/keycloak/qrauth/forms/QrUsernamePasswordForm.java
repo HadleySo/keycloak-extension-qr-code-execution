@@ -72,7 +72,7 @@ public class QrUsernamePasswordForm extends UsernamePasswordForm {
         if (link == null) {
             // Create token and convert to link
             QrAuthenticatorActionToken token = QrUtils.createActionToken(context);
-            link = QrUtils.linkFromActionToken(context.getSession(), context.getRealm(), token);
+            link = QrUtils.linkFromActionToken(context.getSession(), context.getRealm(), token, true);
             authSession.setAuthNote(QrUtils.JWT_REQ, link);
         }
 
@@ -150,7 +150,6 @@ public class QrUsernamePasswordForm extends UsernamePasswordForm {
             forms.setAttribute("login", new LoginBean(formData));
             for (String key : formData.keySet()) {
                 forms.setAttribute(key, formData.getFirst(key));
-                log.info("QrUsernamePasswordForm.setFormData " + key + formData.getFirst(key));
             } 
             forms.setFormData(formData);
 

@@ -39,6 +39,10 @@ public class QrUtils {
     public static final String REJECT = "REJECT";
     public static final String TIMEOUT = "TIMEOUT";
 
+    public static final String REQUEST_SOURCE = "REQUEST_SOURCE";
+    public static final String REQUEST_SOURCE_QUERY = "qr_code_originated";
+
+
     public static final List<ProviderConfigProperty> configProperties = new ArrayList<ProviderConfigProperty>();
 
     static {
@@ -88,7 +92,7 @@ public class QrUtils {
             return token;
     }
 
-    public static String linkFromActionToken(KeycloakSession session, RealmModel realm, QrAuthenticatorActionToken token) {
+    public static String linkFromActionToken(KeycloakSession session, RealmModel realm, QrAuthenticatorActionToken token, Boolean usernamePasswordPage) {
         UriInfo uriInfo = session.getContext().getUri();
         String realmName = realm.getName();
         
@@ -99,6 +103,10 @@ public class QrUtils {
 
         UriBuilder builder = actionTokenBuilder(uriInfo.getBaseUri(), token.serialize(session, realm, uriInfo), realmName);
 
+        if (usernamePasswordPage == true) {
+            builder.queryParam(QrUtils.REQUEST_SOURCE_QUERY, true);
+        }
+        
         return builder.build(realm.getName()).toString();
     }
 

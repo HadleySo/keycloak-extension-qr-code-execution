@@ -76,7 +76,7 @@ public class QrAuthenticator implements Authenticator {
         if (link == null) {
             // Create token and convert to link
             QrAuthenticatorActionToken token = QrUtils.createActionToken(context);
-            link = QrUtils.linkFromActionToken(context.getSession(), context.getRealm(), token);
+            link = QrUtils.linkFromActionToken(context.getSession(), context.getRealm(), token, false);
             authSession.setAuthNote(QrUtils.JWT_REQ, link);
         }
 
