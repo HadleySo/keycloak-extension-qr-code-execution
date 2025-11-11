@@ -3,6 +3,7 @@ package com.hadleyso.keycloak.qrauth.auth;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.Authenticator;
+import org.keycloak.authentication.authenticators.util.AcrStore;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
@@ -34,6 +35,7 @@ public class QrAuthenticator implements Authenticator {
 
         final AuthenticationSessionModel authSession = context.getAuthenticationSession();
         final KeycloakSession session = context.getSession();
+        final AcrStore acrStore = new AcrStore(context.getSession(), authSession);
         RealmModel realm = context.getRealm();
 
 
@@ -62,6 +64,20 @@ public class QrAuthenticator implements Authenticator {
         if (user != null) {
             // Attach the user to the flow
             context.setUser(user);
+
+            if (config != null) {
+                if (Boolean.parseBoolean(config.getConfig().get("acr.allow.transfer")) == true) {
+                    // Attach ACR
+                    String authOkAcrRaw = authSession.getAuthNote(QrUtils.AUTHENTICATED_ACR);
+                    int authOkACR = -1;
+                    if (authOkAcrRaw != null) {
+                        authOkACR = Integer.valueOf(authOkAcrRaw);
+                    }
+                    log.info("authOkUserId - attaching authOkACR: " + authOkACR);
+                    acrStore.setLevelAuthenticated(authOkACR);
+                }
+            }
+
             context.success();
             return;
         }

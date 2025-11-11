@@ -12,6 +12,7 @@ import java.util.Map;
 
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowContext;
+import org.keycloak.authentication.authenticators.util.AcrStore;
 import org.keycloak.common.ClientConnection;
 import org.keycloak.common.util.Base64Url;
 import org.keycloak.models.KeycloakSession;
@@ -41,11 +42,13 @@ import ua_parser.Client;
 @JBossLog
 public class QrUtils {
     public static final String AUTHENTICATED_USER_ID = "AUTHENTICATED_USER_ID";
+    public static final String AUTHENTICATED_ACR = "AUTHENTICATED_ACR";
     public static final String BRUTE_FORCE_USER_ID = "BRUTE_FORCE_USER_ID";
     public static final String NOTE_QR_LINK = "QR-LINK-PUBLIC";
     public static final String REJECT = "REJECT";
     public static final String TIMEOUT = "TIMEOUT";
 
+    public static final String ORIGIN_ACR = "QR-ORIGIN-ACR";
     public static final String ORIGIN_UA_AGENT = "QR-UA_AGENT";
     public static final String ORIGIN_UA_OS = "QR-UA_OS";
     public static final String ORIGIN_UA_DEVICE = "QR-UA_DEVICE";
@@ -87,6 +90,15 @@ public class QrUtils {
         alignmentProperty.setOptions(Arrays.asList("Left", "Center", "Right"));
         alignmentProperty.setRequired(true);
         configProperties.add(alignmentProperty);
+
+        ProviderConfigProperty acrProperty = new ProviderConfigProperty();
+        acrProperty.setName("acr.allow.transfer");
+        acrProperty.setLabel("Allow ACR Transfer");
+        acrProperty.setType(ProviderConfigProperty.BOOLEAN_TYPE);
+        acrProperty.setHelpText("Should ACR level completed on the alternate device apply to the originating authentication. Set to true to enable ACR to transfer.");
+        acrProperty.setRequired(true);
+        acrProperty.setDefaultValue(false);
+        configProperties.add(acrProperty);
     }
 
     
@@ -106,10 +118,15 @@ public class QrUtils {
         Locale resolvedLocale = context.getSession().getContext().resolveLocale(context.getUser());
         String local_localized = resolvedLocale.getDisplayName();
 
+        // Get ACR
+        AcrStore acrStore = new AcrStore(context.getSession(), authSession);
+        int reqAcr = acrStore.getRequestedLevelOfAuthentication(context.getTopLevelFlow());
+
         authSession.setAuthNote(ORIGIN_UA_AGENT, ua_agent);
         authSession.setAuthNote(ORIGIN_UA_OS, ua_os);
         authSession.setAuthNote(ORIGIN_UA_DEVICE, ua_device);
         authSession.setAuthNote(ORIGIN_LOCALE, local_localized);
+        authSession.setAuthNote(ORIGIN_ACR, String.valueOf(reqAcr));
 
         // Create URL query parameters
         String sid = authSession.getParentSession().getId();

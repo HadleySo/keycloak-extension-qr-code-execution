@@ -3,6 +3,7 @@ package com.hadleyso.keycloak.qrauth.forms;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.authenticators.browser.UsernamePasswordForm;
+import org.keycloak.authentication.authenticators.util.AcrStore;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.forms.login.freemarker.model.LoginBean;
 import org.keycloak.models.AuthenticatorConfigModel;
@@ -26,8 +27,12 @@ public class QrUsernamePasswordForm extends UsernamePasswordForm {
     @Override
     public void authenticate(AuthenticationFlowContext context) {
         log.info("QrUsernamePasswordForm.authenticate");
+
+        AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+
         final AuthenticationSessionModel authSession = context.getAuthenticationSession();
         final KeycloakSession session = context.getSession();
+        final AcrStore acrStore = new AcrStore(context.getSession(), authSession);
         RealmModel realm = context.getRealm();
 
 
@@ -56,6 +61,20 @@ public class QrUsernamePasswordForm extends UsernamePasswordForm {
         if (user != null) {
             // Attach the user to the flow
             context.setUser(user);
+
+            if (config != null) {
+                if (Boolean.parseBoolean(config.getConfig().get("acr.allow.transfer")) == true) {
+                    // Attach ACR
+                    String authOkAcrRaw = authSession.getAuthNote(QrUtils.AUTHENTICATED_ACR);
+                    int authOkACR = -1;
+                    if (authOkAcrRaw != null) {
+                        authOkACR = Integer.valueOf(authOkAcrRaw);
+                    }
+                    log.info("authOkUserId - attaching authOkACR: " + authOkACR);
+                    acrStore.setLevelAuthenticated(authOkACR);
+                }
+            }
+
             context.success();
             return;
         }
@@ -63,7 +82,6 @@ public class QrUsernamePasswordForm extends UsernamePasswordForm {
         // NOT LOGGED IN BY QR
 
 
-        AuthenticatorConfigModel config = context.getAuthenticatorConfig();
 
         // Check if already made
         String link = authSession.getAuthNote(QrUtils.NOTE_QR_LINK);

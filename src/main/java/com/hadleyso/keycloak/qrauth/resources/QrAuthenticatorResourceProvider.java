@@ -4,12 +4,15 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.keycloak.authentication.authenticators.util.AcrStore;
 import org.keycloak.forms.login.LoginFormsProvider;
+import org.keycloak.models.AuthenticatedClientSessionModel;
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.Constants;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.models.UserSessionModel;
 import org.keycloak.services.ErrorPageException;
 import org.keycloak.services.Urls;
 import org.keycloak.services.managers.AppAuthManager;
@@ -50,7 +53,22 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
     @Produces(MediaType.TEXT_HTML)
 	public Response loginWithQrCode(@QueryParam(Constants.TOKEN) String token, @QueryParam(QrUtils.REQUEST_SOURCE_QUERY) String qr_code_originated) {        
         log.info("QrAuthenticatorResourceProvider.loginWithQrCode");
-        
+
+
+        final Map<String, String> decodeToken = QrUtils.decodePublicToken(token);
+
+        if (decodeToken == null) {
+            throw new ErrorPageException(session, 
+                                Response.Status.INTERNAL_SERVER_ERROR, 
+                                Messages.INVALID_PARAMETER);
+        }
+
+        // Get remote session info
+        String sid = decodeToken.get(QrUtils.PUBLIC_QR_PARAM_SESSION_ID);
+        String tid = decodeToken.get(QrUtils.PUBLIC_QR_PARAM_TAB_ID);
+        String rid = session.getContext().getRealm().getId();
+
+        AuthenticationSessionModel originSession = getOriginSession(rid, sid, tid);
 
         // Get context realm
         RealmModel realm = session.getContext().getRealm();
@@ -84,6 +102,13 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
             accountClient.setRedirectUris(uris);
         }
 
+        // Get origin requested ACR
+        String originAcrRaw = originSession.getAuthNote(QrUtils.ORIGIN_ACR);
+        // TODO: Get successful LoA 
+        // if (originAcrRaw != null) {
+        //     accountClient.setAttribute("minimum_acr_value", "minAcrValue");
+        //     accountClient.setAttribute("acr_to_loa_mapping", "minAcrValue="+originAcrRaw);
+        // }
 
         // Serve login
         UriBuilder uriBuilder = UriBuilder.fromUri(session.getContext().getUri().getBaseUri())
@@ -218,6 +243,12 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
         AuthenticationManager.AuthResult auth = authManager.authenticateIdentityCookie(session, realm);
         UserModel user = auth.getUser();
 
+        // Get successful LoA
+        // final AcrStore acrStore = new AcrStore(session, clientSession);
+        // TODO: Get successful LoA 
+        int authenticatedLOA = -1;
+        log.info("QrAuthenticatorResourceProvider.approveRemote authenticatedLOA: " + authenticatedLOA);
+
         // Verify user valid
         String userId = null;
         if (user != null) {
@@ -231,6 +262,9 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
         
         // Set remote session to valid
         originSession.setAuthNote(QrUtils.AUTHENTICATED_USER_ID, userId); 
+
+        // Set remote session ACR
+        originSession.setAuthNote(QrUtils.AUTHENTICATED_ACR, String.valueOf(authenticatedLOA)); 
 
         // Build redirect path to success page
         UriBuilder builder = Urls.realmBase(session.getContext().getUri().getBaseUri())
