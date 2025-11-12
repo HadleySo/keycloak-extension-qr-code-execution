@@ -108,7 +108,7 @@ public class QrUtils {
         configProperties.add(acrProperty);
     }
 
-    public static String createPublicToken(AuthenticationFlowContext context) {
+    public static String createPublicToken(AuthenticationFlowContext context, Boolean setACR) {
         AuthenticationSessionModel authSession = context.getAuthenticationSession();
 
         // Get user agent
@@ -127,12 +127,13 @@ public class QrUtils {
         // Get ACR
         AcrStore acrStore = new AcrStore(context.getSession(), authSession);
         int reqAcr = acrStore.getRequestedLevelOfAuthentication(context.getTopLevelFlow());
+        String noteACR = setACR ? String.valueOf(reqAcr): "";
 
         authSession.setAuthNote(ORIGIN_UA_AGENT, ua_agent);
         authSession.setAuthNote(ORIGIN_UA_OS, ua_os);
         authSession.setAuthNote(ORIGIN_UA_DEVICE, ua_device);
         authSession.setAuthNote(ORIGIN_LOCALE, local_localized);
-        authSession.setAuthNote(ORIGIN_ACR, String.valueOf(reqAcr));
+        authSession.setAuthNote(ORIGIN_ACR, noteACR);
 
         // Create URL query parameters
         String sid = authSession.getParentSession().getId();
@@ -297,5 +298,11 @@ public class QrUtils {
                 }
             }
         }
+    }
+
+    public static Boolean transferAcrEnabled(AuthenticatorConfigModel config) {
+        if (config == null)
+            return false;
+        return Boolean.parseBoolean(config.getConfig().get("acr.allow.transfer"));
     }
 }

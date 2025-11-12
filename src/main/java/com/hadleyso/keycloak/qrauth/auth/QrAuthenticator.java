@@ -73,7 +73,7 @@ public class QrAuthenticator implements Authenticator {
 
         if (link == null) {
             // Create token and convert to link
-            String token = QrUtils.createPublicToken(context);
+            String token = QrUtils.createPublicToken(context, QrUtils.transferAcrEnabled(config));
             if (token == null) {
                 context.failure(AuthenticationFlowError.INTERNAL_ERROR);
                 return;

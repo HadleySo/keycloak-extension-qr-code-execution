@@ -281,14 +281,6 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
                     Messages.EXPIRED_CODE);
         }
 
-        String acrRaw = parsedIdToken.getAcr();
-
-        // Get successful LoA
-        int authenticatedLOA = -1;
-        if (acrRaw != null) {
-            authenticatedLOA = Integer.valueOf(acrRaw);
-        }
-        log.debug("QrAuthenticatorResourceProvider.approveRemote authenticatedLOA: " + authenticatedLOA);
 
         // Verify user valid
         String userId = null;
@@ -304,7 +296,8 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
         originSession.setAuthNote(QrUtils.AUTHENTICATED_USER_ID, userId);
 
         // Set remote session ACR
-        originSession.setAuthNote(QrUtils.AUTHENTICATED_ACR, String.valueOf(authenticatedLOA));
+        String acrRaw = parsedIdToken.getAcr();
+        originSession.setAuthNote(QrUtils.AUTHENTICATED_ACR, acrRaw);
 
         // Build redirect path to success page
         UriBuilder builder = Urls.realmBase(session.getContext().getUri().getBaseUri())
