@@ -1,18 +1,21 @@
 package com.hadleyso.keycloak.qrauth.resources;
 
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import org.keycloak.authentication.authenticators.util.AcrStore;
 import org.keycloak.forms.login.LoginFormsProvider;
-import org.keycloak.models.AuthenticatedClientSessionModel;
+import org.keycloak.http.simple.SimpleHttp;
+import org.keycloak.http.simple.SimpleHttpRequest;
+import org.keycloak.jose.jws.JWSInput;
+import org.keycloak.jose.jws.JWSInputException;
 import org.keycloak.models.ClientModel;
-import org.keycloak.models.Constants;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
-import org.keycloak.models.UserSessionModel;
+import org.keycloak.representations.AccessTokenResponse;
+import org.keycloak.representations.IDToken;
 import org.keycloak.services.ErrorPageException;
 import org.keycloak.services.Urls;
 import org.keycloak.services.managers.AppAuthManager;
@@ -51,7 +54,7 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
     @GET
     @Path("scan")
     @Produces(MediaType.TEXT_HTML)
-	public Response loginWithQrCode(@QueryParam(Constants.TOKEN) String token, @QueryParam(QrUtils.REQUEST_SOURCE_QUERY) String qr_code_originated) {        
+	public Response loginWithQrCode(@QueryParam(QrUtils.TOKEN) String token, @QueryParam(QrUtils.REQUEST_SOURCE_QUERY) String qr_code_originated) {        
         log.info("QrAuthenticatorResourceProvider.loginWithQrCode");
 
 
@@ -81,42 +84,38 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
             .path(realm.getName())
             .path(QrAuthenticatorResourceProviderFactory.getStaticId())
             .path(QrAuthenticatorResourceProvider.class, "verify")
-            .queryParam("prompt", "login")
-            .queryParam(Constants.TOKEN, token);
+            .queryParam(QrUtils.TOKEN, token);
         
-        String clientRedirects = builderPath.build().toString() + "*";
+        String clientRedirects = builderPath.build().toString() + "/*";
         String redirectURI = builderToken.build().toString();
 
 
-        // Get account client and add redirect path
-        ClientModel accountClient = session.clients().getClientByClientId(realm, "account");
-        if (accountClient == null) {
+        // Get client and add redirect path
+        ClientModel qrAuthClient = session.clients().getClientByClientId(realm, QrUtils.CLIENT_ID);
+        if (qrAuthClient == null) {
             throw new ErrorPageException(session, 
                 Response.Status.BAD_REQUEST, 
                 Messages.INTERNAL_SERVER_ERROR);
         }
 
-        Set<String> uris = new HashSet<>(accountClient.getRedirectUris());
+        Set<String> uris = new HashSet<>(qrAuthClient.getRedirectUris());
         if (!uris.contains(clientRedirects)) {
             uris.add(clientRedirects);
-            accountClient.setRedirectUris(uris);
+            qrAuthClient.setRedirectUris(uris);
         }
 
         // Get origin requested ACR
         String originAcrRaw = originSession.getAuthNote(QrUtils.ORIGIN_ACR);
-        // TODO: Get successful LoA 
-        // if (originAcrRaw != null) {
-        //     accountClient.setAttribute("minimum_acr_value", "minAcrValue");
-        //     accountClient.setAttribute("acr_to_loa_mapping", "minAcrValue="+originAcrRaw);
-        // }
 
         // Serve login
         UriBuilder uriBuilder = UriBuilder.fromUri(session.getContext().getUri().getBaseUri())
             .path("realms")
             .path(realm.getName())
             .path("protocol/openid-connect/auth")
-            .queryParam("client_id", accountClient.getClientId())
+            .queryParam("client_id", QrUtils.CLIENT_ID)
             .queryParam("redirect_uri", redirectURI)
+            .queryParam("acr_values", originAcrRaw)
+            .queryParam("scope", "openid")
             .queryParam("response_type", "code");
 
                     
@@ -133,7 +132,7 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
     @GET
     @Path("verify")
     @Produces(MediaType.TEXT_HTML)
-	public Response verify(@QueryParam(Constants.TOKEN) String token) {   
+	public Response verify(@QueryParam(QrUtils.TOKEN) String token, @QueryParam("code") String code) {   
         log.info("QrAuthenticatorResourceProvider.verify");
 
         final Map<String, String> decodeToken = QrUtils.decodePublicToken(token);
@@ -174,15 +173,16 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
             .path(QrAuthenticatorResourceProviderFactory.getStaticId())
             .path(QrAuthenticatorResourceProvider.class, "approveRemote")
             .queryParam("prompt", "login")
-            .queryParam(Constants.TOKEN, token);
+            .queryParam("code", code)
+            .queryParam(QrUtils.TOKEN, token);
         String approveURL = builder.build().toString();
 
-            // Get reject link
+        // Get reject link
         UriBuilder builderReject = Urls.realmBase(session.getContext().getUri().getBaseUri())
             .path(realm.getName())
             .path(QrAuthenticatorResourceProviderFactory.getStaticId())
             .path(QrAuthenticatorResourceProvider.class, "rejectRemote")
-            .queryParam(Constants.TOKEN, token);
+            .queryParam(QrUtils.TOKEN, token);
         String rejectURL = builderReject.build().toString();
 
         // Create form
@@ -203,7 +203,7 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
     @GET
     @Path("approve")
     @Produces(MediaType.TEXT_HTML)
-	public Response approveRemote(@QueryParam(Constants.TOKEN) String token) {   
+	public Response approveRemote(@QueryParam(QrUtils.TOKEN) String token, @QueryParam("code") String code) {   
         log.info("QrAuthenticatorResourceProvider.approveRemote");
         
         final Map<String, String> decodeToken = QrUtils.decodePublicToken(token);
@@ -243,11 +243,55 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
         AuthenticationManager.AuthResult auth = authManager.authenticateIdentityCookie(session, realm);
         UserModel user = auth.getUser();
 
+        // Get token
+        ClientModel qrClient = realm.getClientByClientId(QrUtils.CLIENT_ID);
+        SimpleHttp simpleHttp = SimpleHttp.create(session);
+        SimpleHttpRequest request = simpleHttp.doPost(getTokenEndpoint());
+
+        UriBuilder builderPath = Urls.realmBase(session.getContext().getUri().getBaseUri())
+            .path(realm.getName())
+            .path(QrAuthenticatorResourceProviderFactory.getStaticId())
+            .path(QrAuthenticatorResourceProvider.class, "verify")
+            .queryParam(QrUtils.TOKEN, token);
+        String redirectURI = builderPath.build().toString();
+
+        request.param("grant_type", "authorization_code")
+            .param("code", code)
+            .param("client_id", QrUtils.CLIENT_ID)
+            .param("client_secret", qrClient.getSecret())
+            .param("redirect_uri", redirectURI);
+
+        AccessTokenResponse tokenResponse;
+        try {
+            tokenResponse = request.asJson(AccessTokenResponse.class);
+        } catch (IOException e) {
+            log.info("QrAuthenticatorResourceProvider.approveRemote AccessTokenResponse tokenResponse - Error " + e);
+            throw new ErrorPageException(session, 
+                Response.Status.BAD_REQUEST, 
+                Messages.EXPIRED_CODE);
+        }
+
+        String idToken = tokenResponse.getIdToken();
+        JWSInput jws;
+        IDToken parsedIdToken;
+        try {
+            jws = new JWSInput(idToken);
+            parsedIdToken = jws.readJsonContent(IDToken.class);
+        } catch (JWSInputException e) {
+            log.info("QrAuthenticatorResourceProvider.approveRemote JWSInput or IDToken - Error " + e);
+            throw new ErrorPageException(session, 
+                Response.Status.BAD_REQUEST, 
+                Messages.EXPIRED_CODE);
+        }
+
+        String acrRaw = parsedIdToken.getAcr();  
+
         // Get successful LoA
-        // final AcrStore acrStore = new AcrStore(session, clientSession);
-        // TODO: Get successful LoA 
         int authenticatedLOA = -1;
-        log.info("QrAuthenticatorResourceProvider.approveRemote authenticatedLOA: " + authenticatedLOA);
+        if (acrRaw != null) {
+            authenticatedLOA = Integer.valueOf(acrRaw);
+        }
+        log.debug("QrAuthenticatorResourceProvider.approveRemote authenticatedLOA: " + authenticatedLOA);
 
         // Verify user valid
         String userId = null;
@@ -279,7 +323,7 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
     @GET
     @Path("reject")
     @Produces(MediaType.TEXT_HTML)
-	public Response rejectRemote(@QueryParam(Constants.TOKEN) String token) {  
+	public Response rejectRemote(@QueryParam(QrUtils.TOKEN) String token) {  
         log.info("QrAuthenticatorResourceProvider.rejectRemote");
 
         final Map<String, String> decodeToken = QrUtils.decodePublicToken(token);
@@ -308,7 +352,7 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
     @GET
     @Path("success")
     @Produces(MediaType.TEXT_HTML)
-	public Response successPage(@QueryParam(Constants.TOKEN) String token, @QueryParam(QrUtils.REQUEST_SOURCE_QUERY) String qr_code_originated) { 
+	public Response successPage(@QueryParam(QrUtils.TOKEN) String token, @QueryParam(QrUtils.REQUEST_SOURCE_QUERY) String qr_code_originated) { 
         LoginFormsProvider form = session.getProvider(LoginFormsProvider.class);
         
         if (qr_code_originated != null) {
@@ -330,5 +374,11 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
         AuthenticationSessionModel authSession = allSessions.get(tabId);
 
         return authSession;
+    }
+
+    private String getTokenEndpoint() {
+        RealmModel realm = session.getContext().getRealm();
+        String baseUrl = session.getContext().getUri().getBaseUri().toString();
+        return baseUrl + "realms/" + realm.getName() + "/protocol/openid-connect/token";
     }
 }

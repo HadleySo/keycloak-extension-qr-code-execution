@@ -18,13 +18,15 @@ import org.keycloak.common.util.Base64Url;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.services.Urls;
 import org.keycloak.services.managers.BruteForceProtector;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.utils.StringUtil;
 import org.keycloak.models.AuthenticatorConfigModel;
-import org.keycloak.models.Constants;
+import org.keycloak.models.ClientModel;
+import org.keycloak.models.ClientScopeModel;
 
 import com.hadleyso.keycloak.qrauth.resources.QrAuthenticatorResourceProvider;
 import com.hadleyso.keycloak.qrauth.resources.QrAuthenticatorResourceProviderFactory;
@@ -41,6 +43,9 @@ import ua_parser.Client;
 
 @JBossLog
 public class QrUtils {
+    public static final String CLIENT_ID = "com-qrauth-rest-client";
+    public static final String TOKEN = "qrToken";
+
     public static final String AUTHENTICATED_USER_ID = "AUTHENTICATED_USER_ID";
     public static final String AUTHENTICATED_ACR = "AUTHENTICATED_ACR";
     public static final String BRUTE_FORCE_USER_ID = "BRUTE_FORCE_USER_ID";
@@ -132,6 +137,37 @@ public class QrUtils {
         String sid = authSession.getParentSession().getId();
         String tid = authSession.getTabId();
 
+
+        RealmModel realm = context.getRealm();
+
+        // Create client if not exist
+        ClientModel existingClient = realm.getClientByClientId(CLIENT_ID);
+        if (existingClient == null) {
+
+            // Create client
+            ClientModel client = realm.addClient(CLIENT_ID);
+            client.setEnabled(true);
+            client.setProtocol("openid-connect");
+
+            // Scope to only "acr"
+            client.setFullScopeAllowed(false);
+            realm.getDefaultClientScopesStream(true).forEach(scope -> client.removeClientScope(scope));
+            realm.getDefaultClientScopesStream(false).forEach(scope -> client.removeClientScope(scope));
+            ClientScopeModel acrScope = realm.getClientScopesStream()
+                    .filter(scope -> "acr".equals(scope.getName()))
+                    .findFirst().get();
+            client.addClientScope(acrScope, true);
+
+            // Set Auth type
+            client.setClientAuthenticatorType("client-secret");
+            KeycloakModelUtils.generateSecret(client);
+
+            // Config other
+            client.setPublicClient(false);
+            client.setDirectAccessGrantsEnabled(false);
+        }
+
+        // Create token
         Map<String, String> sessionIdInfo = new LinkedHashMap<>();
         sessionIdInfo.put(PUBLIC_QR_PARAM_SESSION_ID, sid);
         sessionIdInfo.put(PUBLIC_QR_PARAM_TAB_ID, tid);
@@ -187,7 +223,7 @@ public class QrUtils {
                 .path(realmName)
                 .path(QrAuthenticatorResourceProviderFactory.getStaticId())
                 .path(QrAuthenticatorResourceProvider.class, "loginWithQrCode")
-                .queryParam(Constants.TOKEN, tokenString)
+                .queryParam(QrUtils.TOKEN, tokenString)
                 .queryParam("prompt", "login");
     }
 
