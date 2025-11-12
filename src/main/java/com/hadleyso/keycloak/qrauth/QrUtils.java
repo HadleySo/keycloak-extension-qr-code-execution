@@ -43,7 +43,7 @@ import ua_parser.Client;
 
 @JBossLog
 public class QrUtils {
-    public static final String CLIENT_ID = "com-qrauth-rest-client";
+    public static final String CLIENT_ID = "com-hadleyso-keycloak-qrauth-rest-client";
     public static final String TOKEN = "qrToken";
 
     public static final String AUTHENTICATED_USER_ID = "AUTHENTICATED_USER_ID";
@@ -65,7 +65,6 @@ public class QrUtils {
     public static final String REQUEST_SOURCE = "REQUEST_SOURCE";
     public static final String REQUEST_SOURCE_QUERY = "qr_code_originated";
 
-
     public static final List<ProviderConfigProperty> configProperties = new ArrayList<ProviderConfigProperty>();
 
     static {
@@ -73,7 +72,8 @@ public class QrUtils {
         refreshProperty.setName("refresh.rate");
         refreshProperty.setLabel("Check Refresh Rate");
         refreshProperty.setType(ProviderConfigProperty.INTEGER_TYPE);
-        refreshProperty.setHelpText("How often in seconds to reload the page to check if the authentication is approved. Zero disables refresh.");
+        refreshProperty.setHelpText(
+                "How often in seconds to reload the page to check if the authentication is approved. Zero disables refresh.");
         refreshProperty.setDefaultValue(15);
         refreshProperty.setRequired(true);
         configProperties.add(refreshProperty);
@@ -82,7 +82,8 @@ public class QrUtils {
         timeoutProperty.setName("timeout.rate");
         timeoutProperty.setLabel("Login Timeout");
         timeoutProperty.setType(ProviderConfigProperty.INTEGER_TYPE);
-        timeoutProperty.setHelpText("How long in seconds a QR code can be displayed before timeout. Zero disables timeout.");
+        timeoutProperty
+                .setHelpText("How long in seconds a QR code can be displayed before timeout. Zero disables timeout.");
         timeoutProperty.setDefaultValue(300);
         timeoutProperty.setRequired(true);
         configProperties.add(timeoutProperty);
@@ -100,13 +101,13 @@ public class QrUtils {
         acrProperty.setName("acr.allow.transfer");
         acrProperty.setLabel("Allow ACR Transfer");
         acrProperty.setType(ProviderConfigProperty.BOOLEAN_TYPE);
-        acrProperty.setHelpText("Should ACR level completed on the alternate device apply to the originating authentication. Set to true to enable ACR to transfer.");
+        acrProperty.setHelpText(
+                "Should ACR level completed on the alternate device apply to the originating authentication. Set to true to enable ACR to transfer.");
         acrProperty.setRequired(true);
         acrProperty.setDefaultValue(false);
         configProperties.add(acrProperty);
     }
 
-    
     public static String createPublicToken(AuthenticationFlowContext context) {
         AuthenticationSessionModel authSession = context.getAuthenticationSession();
 
@@ -118,7 +119,7 @@ public class QrUtils {
         String ua_os = uaClient.os.family;
         String ua_device = uaClient.device.family;
         String ua_agent = uaClient.userAgent.family;
-        
+
         // Get locale
         Locale resolvedLocale = context.getSession().getContext().resolveLocale(context.getUser());
         String local_localized = resolvedLocale.getDisplayName();
@@ -137,7 +138,6 @@ public class QrUtils {
         String sid = authSession.getParentSession().getId();
         String tid = authSession.getTabId();
 
-
         RealmModel realm = context.getRealm();
 
         // Create client if not exist
@@ -148,6 +148,9 @@ public class QrUtils {
             ClientModel client = realm.addClient(CLIENT_ID);
             client.setEnabled(true);
             client.setProtocol("openid-connect");
+            client.setName("QR Code Login Extension");
+            client.setDescription(
+                    "Client for QR Code execution in browser logins. Can be deleted and will automatically regenerate on next browser login. See https://github.com/HadleySo/keycloak-extension-qr-code-execution");
 
             // Scope to only "acr"
             client.setFullScopeAllowed(false);
@@ -179,7 +182,7 @@ public class QrUtils {
         } catch (JsonProcessingException e) {
             return null;
         }
-            
+
         return Base64Url.encode(sessionIdInfoJson.getBytes());
     }
 
@@ -188,19 +191,22 @@ public class QrUtils {
 
         ObjectMapper objectMapper = new ObjectMapper();
         try {
-            return objectMapper.readValue(decodedBytes, new TypeReference<Map<String, String>>() {});
+            return objectMapper.readValue(decodedBytes, new TypeReference<Map<String, String>>() {
+            });
         } catch (IOException e) {
             return null;
         }
     }
 
-    public static String linkFromActionToken(KeycloakSession session, RealmModel realm, String token, Boolean usernamePasswordPage) {
+    public static String linkFromActionToken(KeycloakSession session, RealmModel realm, String token,
+            Boolean usernamePasswordPage) {
         UriInfo uriInfo = session.getContext().getUri();
         String realmName = realm.getName();
-        
+
         // Exception for master realm
         if (Config.getAdminRealm().equals(realm.getName())) {
-            throw new IllegalStateException(String.format("Disabled for admin / master realm: %s", Config.getAdminRealm()));
+            throw new IllegalStateException(
+                    String.format("Disabled for admin / master realm: %s", Config.getAdminRealm()));
         }
 
         UriBuilder builder = actionTokenBuilder(uriInfo.getBaseUri(), token, realmName);
@@ -208,7 +214,7 @@ public class QrUtils {
         if (usernamePasswordPage == true) {
             builder.queryParam(QrUtils.REQUEST_SOURCE_QUERY, true);
         }
-        
+
         String url = builder.build(realm.getName()).toString();
 
         // https://github.com/davidshimjs/qrcodejs/issues/78
@@ -243,7 +249,7 @@ public class QrUtils {
             BruteForceProtector protector = session.getProvider(BruteForceProtector.class);
             protector.failedLogin(realm, user, clientConnection, uriInfo);
         }
-        
+
     }
 
     public static boolean timeoutPassed(AuthenticationFlowContext context) {
@@ -254,7 +260,7 @@ public class QrUtils {
             ZonedDateTime maxTimestamp = ZonedDateTime.parse(timeout);
             return maxTimestamp.isBefore(ZonedDateTime.now());
 
-        } 
+        }
 
         AuthenticatorConfigModel config = context.getAuthenticatorConfig();
         int timeoutRate = 300;
@@ -266,7 +272,30 @@ public class QrUtils {
                 authSession.setAuthNote(QrUtils.TIMEOUT, maxTimestamp.toString());
             }
         }
-        
+
         return false;
+    }
+
+    public static void handleACR(AuthenticatorConfigModel config, AuthenticationFlowContext context,
+            AuthenticationSessionModel authSession) {
+
+        if (config == null)
+            return;
+
+        final AcrStore acrStore = new AcrStore(context.getSession(), authSession);
+
+        if (Boolean.parseBoolean(config.getConfig().get("acr.allow.transfer")) == true) {
+            // Attach ACR
+            String authOkAcrRaw = authSession.getAuthNote(QrUtils.AUTHENTICATED_ACR);
+            int authOkACR = -1;
+            if (authOkAcrRaw != null) {
+                authOkACR = Integer.valueOf(authOkAcrRaw);
+
+                if (authOkACR != -1) {
+                    log.info("QrUtils.handleACR - attaching ACR: " + authOkACR);
+                    acrStore.setLevelAuthenticated(authOkACR);
+                }
+            }
+        }
     }
 }

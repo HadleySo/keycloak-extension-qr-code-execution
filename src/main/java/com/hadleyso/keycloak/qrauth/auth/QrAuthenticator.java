@@ -3,7 +3,6 @@ package com.hadleyso.keycloak.qrauth.auth;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.Authenticator;
-import org.keycloak.authentication.authenticators.util.AcrStore;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
@@ -35,9 +34,7 @@ public class QrAuthenticator implements Authenticator {
 
         final AuthenticationSessionModel authSession = context.getAuthenticationSession();
         final KeycloakSession session = context.getSession();
-        final AcrStore acrStore = new AcrStore(context.getSession(), authSession);
         RealmModel realm = context.getRealm();
-
 
         // Rejected then cancel
         String reject = authSession.getAuthNote(QrUtils.REJECT);
@@ -55,33 +52,19 @@ public class QrAuthenticator implements Authenticator {
             return;
         }
 
-        // Check if authenticated 
+        // Check if authenticated
         UserModel user = null;
         String authOkUserId = authSession.getAuthNote(QrUtils.AUTHENTICATED_USER_ID);
         if (authOkUserId != null) {
             user = session.users().getUserById(realm, authOkUserId);
-        } 
+        }
         if (user != null) {
             // Attach the user to the flow
             context.setUser(user);
-
-            if (config != null) {
-                if (Boolean.parseBoolean(config.getConfig().get("acr.allow.transfer")) == true) {
-                    // Attach ACR
-                    String authOkAcrRaw = authSession.getAuthNote(QrUtils.AUTHENTICATED_ACR);
-                    int authOkACR = -1;
-                    if (authOkAcrRaw != null) {
-                        authOkACR = Integer.valueOf(authOkAcrRaw);
-                    }
-                    log.info("authOkUserId - attaching authOkACR: " + authOkACR);
-                    acrStore.setLevelAuthenticated(authOkACR);
-                }
-            }
-
+            QrUtils.handleACR(config, context, authSession);
             context.success();
             return;
         }
-
 
         // NOT LOGGED IN
 
@@ -117,20 +100,19 @@ public class QrAuthenticator implements Authenticator {
         String alignment = "Center";
         if (config != null) {
             alignment = config.getConfig().get("display.alignment");
-            if (alignment == null) alignment = "Center";
+            if (alignment == null)
+                alignment = "Center";
         }
-
 
         // Show ftl template page with QR code
         context.challenge(
-            context.form()
-                .setAttribute("QRauthExecId", execId)
-                .setAttribute("QRauthToken", link)
-                .setAttribute("tabId", tabId)
-                .setAttribute("refreshRate", refreshRate)
-                .setAttribute("alignment", alignment)
-                .createForm("qr-login-scan.ftl")
-        );
+                context.form()
+                        .setAttribute("QRauthExecId", execId)
+                        .setAttribute("QRauthToken", link)
+                        .setAttribute("tabId", tabId)
+                        .setAttribute("refreshRate", refreshRate)
+                        .setAttribute("alignment", alignment)
+                        .createForm("qr-login-scan.ftl"));
     }
 
     @Override
@@ -147,5 +129,4 @@ public class QrAuthenticator implements Authenticator {
     public void setRequiredActions(KeycloakSession arg0, RealmModel arg1, UserModel arg2) {
     }
 
-    
 }

@@ -3,7 +3,6 @@ package com.hadleyso.keycloak.qrauth.forms;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.authenticators.browser.UsernamePasswordForm;
-import org.keycloak.authentication.authenticators.util.AcrStore;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.forms.login.freemarker.model.LoginBean;
 import org.keycloak.models.AuthenticatorConfigModel;
@@ -32,9 +31,7 @@ public class QrUsernamePasswordForm extends UsernamePasswordForm {
 
         final AuthenticationSessionModel authSession = context.getAuthenticationSession();
         final KeycloakSession session = context.getSession();
-        final AcrStore acrStore = new AcrStore(context.getSession(), authSession);
         RealmModel realm = context.getRealm();
-
 
         // Rejected then cancel
         String reject = authSession.getAuthNote(QrUtils.REJECT);
@@ -52,36 +49,21 @@ public class QrUsernamePasswordForm extends UsernamePasswordForm {
             return;
         }
 
-        // Check if authenticated 
+        // Check if authenticated
         UserModel user = null;
         String authOkUserId = authSession.getAuthNote(QrUtils.AUTHENTICATED_USER_ID);
         if (authOkUserId != null) {
             user = session.users().getUserById(realm, authOkUserId);
-        } 
+        }
         if (user != null) {
             // Attach the user to the flow
             context.setUser(user);
-
-            if (config != null) {
-                if (Boolean.parseBoolean(config.getConfig().get("acr.allow.transfer")) == true) {
-                    // Attach ACR
-                    String authOkAcrRaw = authSession.getAuthNote(QrUtils.AUTHENTICATED_ACR);
-                    int authOkACR = -1;
-                    if (authOkAcrRaw != null) {
-                        authOkACR = Integer.valueOf(authOkAcrRaw);
-                    }
-                    log.info("authOkUserId - attaching authOkACR: " + authOkACR);
-                    acrStore.setLevelAuthenticated(authOkACR);
-                }
-            }
-
+            QrUtils.handleACR(config, context, authSession);
             context.success();
             return;
         }
 
         // NOT LOGGED IN BY QR
-
-
 
         // Check if already made
         String link = authSession.getAuthNote(QrUtils.NOTE_QR_LINK);
@@ -106,10 +88,9 @@ public class QrUsernamePasswordForm extends UsernamePasswordForm {
         String alignment = "Center";
         if (config != null) {
             alignment = config.getConfig().get("display.alignment");
-            if (alignment == null) alignment = "Center";
+            if (alignment == null)
+                alignment = "Center";
         }
-
-
 
         // https://github.com/keycloak/keycloak/blob/39c4c1ed942a4bdcc0a3c4d68a9b853a082ea9a2/services/src/main/java/org/keycloak/authentication/authenticators/browser/UsernamePasswordForm.java#L127-L133
 
@@ -171,7 +152,7 @@ public class QrUsernamePasswordForm extends UsernamePasswordForm {
             forms.setAttribute("login", new LoginBean(formData));
             for (String key : formData.keySet()) {
                 forms.setAttribute(key, formData.getFirst(key));
-            } 
+            }
             forms.setFormData(formData);
 
         } else {
