@@ -56,7 +56,7 @@ public class QrAuthenticatorFactory implements AuthenticatorFactory {
 
     @Override
     public String getReferenceCategory() {
-        return "alternate-auth";
+        return null;
     }
 
     @Override

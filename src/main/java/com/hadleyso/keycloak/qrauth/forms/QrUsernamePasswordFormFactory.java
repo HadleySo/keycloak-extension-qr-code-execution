@@ -14,7 +14,7 @@ import com.hadleyso.keycloak.qrauth.QrUtils;
 
 public class QrUsernamePasswordFormFactory extends UsernamePasswordFormFactory {
     
-    public static final String PROVIDER_ID = "qr-code-auth-username-password-form";
+    public static final String PROVIDER_ID = "auth-username-password-form-qr-code";
 
     private static final AuthenticationExecutionModel.Requirement[] REQUIREMENT_CHOICES = {
         AuthenticationExecutionModel.Requirement.REQUIRED,
@@ -56,6 +56,11 @@ public class QrUsernamePasswordFormFactory extends UsernamePasswordFormFactory {
     @Override
     public String getHelpText() {
         return "Validates a username and password from login form and provides optional QR Code login.";
+    }
+
+    @Override
+    public String getReferenceCategory() {
+        return null;
     }
 
     @Override
