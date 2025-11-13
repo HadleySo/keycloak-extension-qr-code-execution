@@ -18,6 +18,7 @@ Both executions provide:
 - Authentication executions available in browser bound flows
 - Confirmation of session id (tabID) on confirmation page
 - Confirmation of User Agent and originating device information on the confirmation page
+- ACR Transfer between sessions, complete required ACR flows on another device
 
 The **QR Code Sign In** execution:
 
@@ -56,10 +57,19 @@ Compatible with **Keycloak 26.4.x**. Should be compatible with 26.3.x but has no
 
 **No configuration** needed if *Username Password Form with Optional QR Code Login* is not used. *QR Code Sign In* can just be added to your browser flow. 
 
-Optional configuration is available for **Refresh Rate** and **Login Timeout**:  
+**Refresh Rate** and **Login Timeout**:  
 - Refresh rate sets how often the login page reloads to check if a user has authenticated  
 - Login timeout sets how long the user has before the flow is invalidated  
 - **Note**: If the Refresh Rate is zero or less than Login Timeout, the QR code will display even when the flow has expired/invalidated.
+
+**ACR Transfer**: 
+- When enabled, the required ACR on the originating session will be the required ACR on the device completing authentication. 
+- Once  authenticated, the authenticated ACR level will be set on the originating session.
+- If the device authenticating does not complete the originating ACR level, the originating session ACR value will be set to the ACR level the authenticating device flow was authenticated to. 
+
+| :exclamation:  The device authenticating uses the realm default browser flow, not the client specific flow from the originating session.   |
+|-------------------------------------------------------------------------------------------------------------------------------------------|
+
 
 #### Template Themes
 The [ftl templates](src/main/resources/theme-resources/templates) can be overridden. This is optional, unless the *Username Password Form with Optional QR Code Login* execution is used in a realm with a custom theme.
