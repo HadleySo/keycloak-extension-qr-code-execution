@@ -70,6 +70,7 @@ public class QrUsernamePasswordForm extends UsernamePasswordForm {
             }
             context.setUser(user);
             QrUtils.handleACR(config, context, authSession);
+            QrUtils.handleCredTransfer(config, context, authSession);
             context.success();
             return;
         }
