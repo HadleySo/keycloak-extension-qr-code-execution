@@ -5,6 +5,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.jboss.logging.Logger;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.http.simple.SimpleHttp;
 import org.keycloak.http.simple.SimpleHttpRequest;
@@ -35,6 +36,7 @@ import jakarta.ws.rs.core.*;
 
 @JBossLog
 public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
+    private static final Logger logger = Logger.getLogger(QrAuthenticatorResourceProvider.class);
 
     protected final KeycloakSession session;
 
@@ -73,9 +75,17 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
 
         AuthenticationSessionModel originSession = getOriginSession(rid, sid, tid);
         if (originSession == null) {
+            if (logger.isTraceEnabled()) {
+                logger.tracef("Origin session is invalid - SID '%s' TID '%s' RID '%s'", sid, tid, rid);
+            }
+
             throw new ErrorPageException(session,
                     Response.Status.BAD_REQUEST,
                     Messages.EXPIRED_CODE);
+        }
+
+        if (logger.isTraceEnabled()) {
+            logger.tracef("Handling origin session SID '%s' TID '%s' RID '%s'", sid, tid, rid);
         }
 
         // Get context realm
@@ -97,6 +107,9 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
         // Get client and add redirect path
         ClientModel qrAuthClient = session.clients().getClientByClientId(realm, QrUtils.CLIENT_ID);
         if (qrAuthClient == null) {
+            if (logger.isTraceEnabled()) {
+                logger.tracef("Client needed for QR Auth wit Client ID '%s' is not available in realm '%s'", QrUtils.CLIENT_ID, realm.getName());
+            }
             throw new ErrorPageException(session,
                     Response.Status.BAD_REQUEST,
                     Messages.INTERNAL_SERVER_ERROR);
@@ -125,6 +138,10 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
         // If username password page
         if (qr_code_originated != null) {
             uriBuilder.queryParam(QrUtils.REQUEST_SOURCE_QUERY, "");
+        }
+
+        if (logger.isTraceEnabled()) {
+            logger.tracef("Serve challenge with ACR: '%s'", originAcrRaw);
         }
 
         return Response.seeOther(uriBuilder.build()).build();

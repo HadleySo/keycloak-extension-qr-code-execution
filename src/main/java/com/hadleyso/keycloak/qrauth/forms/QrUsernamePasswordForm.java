@@ -19,9 +19,11 @@ import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import lombok.extern.jbosslog.JBossLog;
+import org.jboss.logging.Logger;
 
 @JBossLog
 public class QrUsernamePasswordForm extends UsernamePasswordForm {
+    private static final Logger logger = Logger.getLogger(QrUsernamePasswordForm.class);
 
     @Override
     public void authenticate(AuthenticationFlowContext context) {
@@ -36,6 +38,9 @@ public class QrUsernamePasswordForm extends UsernamePasswordForm {
         // Rejected then cancel
         String reject = authSession.getAuthNote(QrUtils.REJECT);
         if (reject == QrUtils.REJECT) {
+            if (logger.isTraceEnabled()) {
+                logger.tracef("Flow '%s' was rejected by remote by user", context.toString());
+            }
             QrUtils.rejectedBruteForce(context);
             context.cancelLogin();
             context.clearUser();
@@ -45,6 +50,9 @@ public class QrUsernamePasswordForm extends UsernamePasswordForm {
 
         // Timeout
         if (QrUtils.timeoutPassed(context)) {
+            if (logger.isTraceEnabled()) {
+                logger.tracef("Flow '%s' has expired", context.toString());
+            }
             context.failure(AuthenticationFlowError.EXPIRED_CODE);
             return;
         }
@@ -57,6 +65,9 @@ public class QrUsernamePasswordForm extends UsernamePasswordForm {
         }
         if (user != null) {
             // Attach the user to the flow
+            if (logger.isTraceEnabled()) {
+                logger.tracef("Attaching user '%s' '%s' to flow '%s'", user.getId(), user.getUsername(), context.toString());
+            }
             context.setUser(user);
             QrUtils.handleACR(config, context, authSession);
             context.success();
@@ -77,6 +88,9 @@ public class QrUsernamePasswordForm extends UsernamePasswordForm {
             }
             link = QrUtils.linkFromActionToken(context.getSession(), context.getRealm(), token, true);
             authSession.setAuthNote(QrUtils.NOTE_QR_LINK, link);
+            if (logger.isTraceEnabled()) {
+                logger.tracef("Created new token with link - token: '%s;", token);
+            }
         }
 
         // Get execution ID for auto-refresh form
@@ -132,6 +146,10 @@ public class QrUsernamePasswordForm extends UsernamePasswordForm {
             webauthnAuth.fillContextForm(context);
         }
 
+   
+        if (logger.isTraceEnabled()) {
+            logger.tracef("Serving session '%s' with tabId '%s' with token in link: '%s;", execId, tabId, link);
+        }
         // Response challengeResponse = challenge(context, formData);
         Response challengeResponse = setFormData(context, formData);
         context.challenge(challengeResponse);

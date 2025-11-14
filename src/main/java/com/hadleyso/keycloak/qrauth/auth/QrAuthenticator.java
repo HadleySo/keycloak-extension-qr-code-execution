@@ -12,9 +12,11 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 import com.hadleyso.keycloak.qrauth.QrUtils;
 
 import lombok.extern.jbosslog.JBossLog;
+import org.jboss.logging.Logger;
 
 @JBossLog
 public class QrAuthenticator implements Authenticator {
+    private static final Logger logger = Logger.getLogger(QrAuthenticator.class);
 
     @Override
     public void close() {
@@ -39,6 +41,9 @@ public class QrAuthenticator implements Authenticator {
         // Rejected then cancel
         String reject = authSession.getAuthNote(QrUtils.REJECT);
         if (reject == QrUtils.REJECT) {
+            if (logger.isTraceEnabled()) {
+                logger.tracef("Flow '%s' was rejected by remote by user", context.toString());
+            }
             QrUtils.rejectedBruteForce(context);
             context.cancelLogin();
             context.clearUser();
@@ -48,6 +53,9 @@ public class QrAuthenticator implements Authenticator {
 
         // Timeout
         if (QrUtils.timeoutPassed(context)) {
+            if (logger.isTraceEnabled()) {
+                logger.tracef("Flow '%s' has expired", context.toString());
+            }
             context.failure(AuthenticationFlowError.EXPIRED_CODE);
             return;
         }
@@ -60,6 +68,9 @@ public class QrAuthenticator implements Authenticator {
         }
         if (user != null) {
             // Attach the user to the flow
+            if (logger.isTraceEnabled()) {
+                logger.tracef("Attaching user '%s' '%s' to flow '%s'", user.getId(), user.getUsername(), context.toString());
+            }
             context.setUser(user);
             QrUtils.handleACR(config, context, authSession);
             context.success();
@@ -80,6 +91,9 @@ public class QrAuthenticator implements Authenticator {
             }
             link = QrUtils.linkFromActionToken(context.getSession(), context.getRealm(), token, false);
             authSession.setAuthNote(QrUtils.NOTE_QR_LINK, link);
+            if (logger.isTraceEnabled()) {
+                logger.tracef("Created new token with link - token: '%s;", token);
+            }
         }
 
         // Get execution ID for auto-refresh form
@@ -104,6 +118,9 @@ public class QrAuthenticator implements Authenticator {
                 alignment = "Center";
         }
 
+        if (logger.isTraceEnabled()) {
+            logger.tracef("Serving session '%s' with tabId '%s' with token in link: '%s;", execId, tabId, link);
+        }
         // Show ftl template page with QR code
         context.challenge(
                 context.form()
