@@ -14,7 +14,7 @@ import org.keycloak.provider.ProviderConfigProperty;
 
 public class CredTypeFactory implements AuthenticatorFactory {
 
-    public static final String PROVIDER_ID = "ext-credential-type-persistance";
+    public static final String PROVIDER_ID = "ext-credential-type-persistence";
 
     private static final AuthenticationExecutionModel.Requirement[] REQUIREMENT_CHOICES = {
         AuthenticationExecutionModel.Requirement.REQUIRED,
