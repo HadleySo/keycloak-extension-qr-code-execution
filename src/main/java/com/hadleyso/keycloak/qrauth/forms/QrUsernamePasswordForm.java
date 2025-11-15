@@ -69,8 +69,8 @@ public class QrUsernamePasswordForm extends UsernamePasswordForm {
                 logger.tracef("Attaching user '%s' '%s' to flow '%s'", user.getId(), user.getUsername(), context.toString());
             }
             context.setUser(user);
-            QrUtils.handleACR(config, context, authSession);
-            QrUtils.handleCredTransfer(config, context, authSession);
+            QrUtils.handleACR(config, context);
+            QrUtils.handleCredTransfer(config, context);
             context.success();
             return;
         }

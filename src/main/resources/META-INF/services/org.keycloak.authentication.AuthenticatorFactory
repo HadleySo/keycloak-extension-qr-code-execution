@@ -1,2 +1,3 @@
 com.hadleyso.keycloak.qrauth.auth.QrAuthenticatorFactory
 com.hadleyso.keycloak.qrauth.forms.QrUsernamePasswordFormFactory
+com.hadleyso.keycloak.qrauth.credentialPersistence.CredTypeFactory

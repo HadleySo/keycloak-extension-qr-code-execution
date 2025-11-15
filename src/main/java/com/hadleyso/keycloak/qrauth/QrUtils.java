@@ -5,24 +5,25 @@ import java.net.URI;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticatorUtil;
-import org.keycloak.authentication.authenticators.conditional.ConditionalCredentialAuthenticator;
-import org.keycloak.authentication.authenticators.conditional.ConditionalCredentialAuthenticatorFactory;
 import org.keycloak.authentication.authenticators.util.AcrStore;
 import org.keycloak.common.ClientConnection;
 import org.keycloak.common.util.Base64Url;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.models.UserSessionModel;
+import org.keycloak.models.UserSessionProvider;
 import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.services.Urls;
@@ -115,6 +116,16 @@ public class QrUtils {
         acrProperty.setRequired(true);
         acrProperty.setDefaultValue(false);
         configProperties.add(acrProperty);
+
+        ProviderConfigProperty credentialProperty = new ProviderConfigProperty();
+        credentialProperty.setName("credential.allow.transfer");
+        credentialProperty.setLabel("Allow Credential Type Transfer");
+        credentialProperty.setType(ProviderConfigProperty.BOOLEAN_TYPE);
+        credentialProperty.setHelpText(
+                "Should Credential Types used on the alternate device apply to the originating authentication. Set to true to enable credential types to transfer. Requires Remember Credential Type execution.");
+        credentialProperty.setRequired(true);
+        credentialProperty.setDefaultValue(false);
+        configProperties.add(credentialProperty);
     }
 
     public static String serializeList(List<String> values) {
@@ -298,12 +309,12 @@ public class QrUtils {
         return false;
     }
 
-    public static void handleACR(AuthenticatorConfigModel config, AuthenticationFlowContext context,
-            AuthenticationSessionModel authSession) {
+    public static void handleACR(AuthenticatorConfigModel config, AuthenticationFlowContext context) {
 
         if (config == null)
             return;
 
+        final AuthenticationSessionModel authSession = context.getAuthenticationSession();
         final AcrStore acrStore = new AcrStore(context.getSession(), authSession);
 
         if (Boolean.parseBoolean(config.getConfig().get("acr.allow.transfer")) == true) {
@@ -327,8 +338,13 @@ public class QrUtils {
         return Boolean.parseBoolean(config.getConfig().get("acr.allow.transfer"));
     }
 
-    public static void handleCredTransfer(AuthenticatorConfigModel config, AuthenticationFlowContext context,
-            AuthenticationSessionModel authSession) {
+    /**
+      * Transfers credentials used to an originating session if enabled
+      * @param config Configuration of the current authenticator 
+      * @param context Originating session context
+      * @return description
+    */
+    public static void handleCredTransfer(AuthenticatorConfigModel config, AuthenticationFlowContext context) {
         if (logger.isTraceEnabled()) {
             logger.tracef("Handling credential transfer to origin session");
         }
@@ -340,12 +356,29 @@ public class QrUtils {
             return;
         }
 
-        String authOkCredentialsRaw = authSession.getAuthNote(QrUtils.AUTHENTICATED_CREDENTIALS);
-        List<String> authOkCredentials = deserializeList(authOkCredentialsRaw);
+        // Get proper user session
+        final KeycloakSession session = context.getSession();
+        final AuthenticationSessionModel authSession = context.getAuthenticationSession();
+        final RealmModel realm = context.getRealm();
+        final String userId = authSession.getAuthNote(QrUtils.AUTHENTICATED_USER_ID);
+        UserSessionProvider userSessionProvider = session.sessions();
+        Stream<UserSessionModel> userSessions = userSessionProvider.getUserSessionsStream(realm, session.users().getUserById(realm, userId));
+        UserSessionModel mostRecentSession =
+            userSessions.max(Comparator.comparingInt(UserSessionModel::getLastSessionRefresh))
+                        .orElse(null); 
 
+
+        if (mostRecentSession == null) return;
+
+        // Retrieve from user session
+        String authOkCredentialsRaw = mostRecentSession.getNote(QrUtils.AUTHENTICATED_CREDENTIALS);
+
+        // Set on session
+        List<String> authOkCredentials = deserializeList(authOkCredentialsRaw);
         for (String authOkCredential : authOkCredentials) {
             AuthenticatorUtil.addAuthCredential(authSession, authOkCredential);
         }
+
         
     }
 }

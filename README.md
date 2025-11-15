@@ -70,8 +70,13 @@ Compatible with **Keycloak 26.4.x**. Should be compatible with 26.3.x but has no
 | :exclamation:  The device authenticating uses the realm default browser flow, not the client specific flow from the originating session.   |
 |-------------------------------------------------------------------------------------------------------------------------------------------|
 
+**Credential Type Transfer**: 
+- When enabled, the credential types used on the device completing authentication will be transferred to the originating session.
+- Useful when the flow has conditions on credential type.
+- Requires the usage of `Remember Credential Type` executor in the flow used by ClientID `com-hadleyso-keycloak-qrauth-rest-client` (typically realm default browser).
 
-#### Template Themes
+
+## Template Themes
 The [ftl templates](src/main/resources/theme-resources/templates) can be overridden. This is optional, unless the *Username Password Form with Optional QR Code Login* execution is used in a realm with a custom theme.
 
 `qr-login.ftl` - for *Username Password Form with Optional QR Code Login*
