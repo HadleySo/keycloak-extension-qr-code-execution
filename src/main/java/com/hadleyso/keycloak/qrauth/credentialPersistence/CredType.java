@@ -7,14 +7,13 @@ import org.keycloak.authentication.AuthenticatorUtil;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
-import org.keycloak.models.UserSessionModel;
-import org.keycloak.sessions.AuthenticationSessionModel;
-import org.keycloak.sessions.RootAuthenticationSessionModel;
 
 import com.hadleyso.keycloak.qrauth.QrUtils;
 
 import lombok.extern.jbosslog.JBossLog;
 
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 import org.jboss.logging.Logger;
@@ -38,29 +37,17 @@ public class CredType implements Authenticator {
         log.info("CredType.authenticate");
 
         List<String> authCredentials = AuthenticatorUtil.getAuthnCredentials(context.getAuthenticationSession());
-        AuthenticationSessionModel authSession = context.getAuthenticationSession();
+        String userId = context.getUser().getId();
+        UserModel user = context.getSession().users().getUserById(context.getRealm(), userId);
 
-        if (authCredentials != null) {
-            RootAuthenticationSessionModel rootAuthSession = authSession.getParentSession();
-            UserSessionModel userSession = context.getSession()
-                    .sessions()
-                    .getUserSession(context.getRealm(), rootAuthSession.getId());
+        String timestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now());
 
-            if (logger.isTraceEnabled()) {
-                logger.tracef("Getting UserSessionModel from rootAuthSession '%s' in realm '%s'",
-                        rootAuthSession.getId(), context.getRealm().getName());
-            }
-
-            if (userSession != null) {
-                if (logger.isTraceEnabled()) {
-                    logger.tracef(
-                            "Got UserSessionModel from rootAuthSession '%s' in realm '%s' for user '%s' - setting authCredentials '%s'",
-                            rootAuthSession.getId(), context.getRealm().getName(), context.getUser().getId(),
-                            authCredentials.toString());
-                }
-                userSession.setNote(QrUtils.AUTHENTICATED_CREDENTIALS, QrUtils.serializeList(authCredentials));
-            }
+        if (logger.isTraceEnabled()) {
+            logger.tracef("Setting UserSingleAttribute on user '%s' in realm '%s' for credentials '%s'",
+                    userId, context.getRealm().getName(), QrUtils.serializeList(authCredentials));
         }
+        user.setSingleAttribute(QrUtils.AUTHENTICATED_CREDENTIALS, QrUtils.serializeList(authCredentials));
+        user.setSingleAttribute(QrUtils.AUTHENTICATED_CREDENTIALS_AGE, timestamp);
 
         context.success();
 

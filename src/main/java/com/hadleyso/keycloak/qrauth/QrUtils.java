@@ -2,16 +2,15 @@ package com.hadleyso.keycloak.qrauth;
 
 import java.io.IOException;
 import java.net.URI;
+import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -22,8 +21,6 @@ import org.keycloak.common.util.Base64Url;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
-import org.keycloak.models.UserSessionModel;
-import org.keycloak.models.UserSessionProvider;
 import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.services.Urls;
@@ -55,7 +52,8 @@ public class QrUtils {
 
     public static final String AUTHENTICATED_USER_ID = "AUTHENTICATED_USER_ID";
     public static final String AUTHENTICATED_ACR = "AUTHENTICATED_ACR";
-    public static final String AUTHENTICATED_CREDENTIALS = "AUTHENTICATED_CREDENTIALS";
+    public static final String AUTHENTICATED_CREDENTIALS = "COM-HADLEYSO-KEYCLOAK-QRAUTH-AUTHENTICATED_CREDENTIALS";
+    public static final String AUTHENTICATED_CREDENTIALS_AGE = "COM-HADLEYSO-KEYCLOAK-QRAUTH-AUTHENTICATED_CREDENTIALS_AGE";
     public static final String BRUTE_FORCE_USER_ID = "BRUTE_FORCE_USER_ID";
     public static final String NOTE_QR_LINK = "QR-LINK-PUBLIC";
     public static final String REJECT = "REJECT";
@@ -356,22 +354,30 @@ public class QrUtils {
             return;
         }
 
-        // Get proper user session
-        final KeycloakSession session = context.getSession();
+        // Get user from auth session
         final AuthenticationSessionModel authSession = context.getAuthenticationSession();
-        final RealmModel realm = context.getRealm();
-        final String userId = authSession.getAuthNote(QrUtils.AUTHENTICATED_USER_ID);
-        UserSessionProvider userSessionProvider = session.sessions();
-        Stream<UserSessionModel> userSessions = userSessionProvider.getUserSessionsStream(realm, session.users().getUserById(realm, userId));
-        UserSessionModel mostRecentSession =
-            userSessions.max(Comparator.comparingInt(UserSessionModel::getLastSessionRefresh))
-                        .orElse(null); 
+        String userId = authSession.getAuthNote(QrUtils.AUTHENTICATED_USER_ID);
+        UserModel user = context.getSession().users().getUserById(context.getRealm(), userId);
 
 
-        if (mostRecentSession == null) return;
+        if (user == null) return;
 
-        // Retrieve from user session
-        String authOkCredentialsRaw = mostRecentSession.getNote(QrUtils.AUTHENTICATED_CREDENTIALS);
+        // Retrieve from user attribute
+        String authOkCredentialsRaw = user.getFirstAttribute(QrUtils.AUTHENTICATED_CREDENTIALS);
+        String authOkCredentialsAge = user.getFirstAttribute(QrUtils.AUTHENTICATED_CREDENTIALS_AGE);
+        if (authOkCredentialsAge != null) {
+            Instant instant = Instant.parse(authOkCredentialsAge);
+            if (instant.isBefore(Instant.now().minusSeconds(15))) {
+                if (logger.isTraceEnabled()) {
+                    logger.tracef("AUTHENTICATED_CREDENTIALS older than 15 seconds");
+                }
+                return;
+            }
+        }
+
+        if (logger.isTraceEnabled()) {
+            logger.tracef("Adding addAuthCredential '%s' to UserID '%s'", authOkCredentialsRaw, userId);
+        }
 
         // Set on session
         List<String> authOkCredentials = deserializeList(authOkCredentialsRaw);
