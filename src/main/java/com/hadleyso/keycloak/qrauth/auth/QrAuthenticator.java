@@ -45,7 +45,6 @@ public class QrAuthenticator implements Authenticator {
                 logger.tracef("Flow '%s' was rejected by remote by user", context.toString());
             }
             QrUtils.rejectedBruteForce(context);
-            context.cancelLogin();
             context.clearUser();
             context.failure(AuthenticationFlowError.ACCESS_DENIED);
             return;

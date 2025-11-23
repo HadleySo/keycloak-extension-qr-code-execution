@@ -42,7 +42,6 @@ public class QrUsernamePasswordForm extends UsernamePasswordForm {
                 logger.tracef("Flow '%s' was rejected by remote by user", context.toString());
             }
             QrUtils.rejectedBruteForce(context);
-            context.cancelLogin();
             context.clearUser();
             context.failure(AuthenticationFlowError.ACCESS_DENIED);
             return;
