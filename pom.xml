@@ -6,7 +6,7 @@
   <groupId>com.hadleyso.keycloak</groupId>
   <artifactId>keycloak-qr-code-login</artifactId>
   <packaging>jar</packaging>
-  <version>0.2.2-SNAPSHOT</version>
+  <version>0.2.3-SNAPSHOT</version>
 
   <name>Keycloak QR Code Login</name>
   <description>QR Code execution extension</description>
