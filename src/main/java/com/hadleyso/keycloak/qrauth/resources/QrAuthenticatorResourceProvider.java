@@ -382,7 +382,10 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
 
     private String getTokenEndpoint() {
         RealmModel realm = session.getContext().getRealm();
-        String baseUrl = session.getContext().getUri().getBaseUri().toString();
-        return baseUrl + "realms/" + realm.getName() + "/protocol/openid-connect/token";
+        UriBuilder builderTokenPath = Urls.realmBase(session.getContext().getUri().getBaseUri())
+                .path(realm.getName())
+                .path("protocol/openid-connect/token");
+        String tokenUrl = builderTokenPath.build().toString();
+        return tokenUrl;
     }
 }
