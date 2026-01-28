@@ -44,14 +44,15 @@ The **Username Password Form with Optional QR Code Login** execution:
 
 ## Compatibility
 
-|               | **v0.2.x**         | **v0.3.x**         |
-|---------------|--------------------|--------------------|
-| **KC 26.3.x** | :heavy_check_mark: | :heavy_check_mark: |
-| **KC 26.4.x** | :white_check_mark: | :white_check_mark: |
-| **KC 26.5.x** |                    | :white_check_mark: |
+|               | **v0.2.x**              | **v0.3.x**         |
+|---------------|-------------------------|--------------------|
+| **KC 26.3.x** | :ballot_box_with_check: |                    |
+| **KC 26.4.x** | :white_check_mark:      |                    |
+| **KC 26.5.x** | :heavy_minus_sign:      | :white_check_mark: |
 
-:heavy_check_mark: - Not validated  
-:white_check_mark: - Compatible
+:white_check_mark: - Compatible  
+:heavy_minus_sign: - Patch only  
+:ballot_box_with_check: - Not validated  
 
 ## Installation
 
