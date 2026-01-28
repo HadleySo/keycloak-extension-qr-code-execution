@@ -94,8 +94,7 @@ The [ftl templates](src/main/resources/theme-resources/templates) can be overrid
 - To render QR code `<@qrlogin.qrLogin />`
 
 `qr-login-scan.ftl` - for *QR Code Sign In* when QR code is displayed
-- requires `${url.resourcesPath}/js/qrcode.min.js` and `${url.resourcesPath}/js/jquery.min.js` for javascript
-- requires `QRauthToken` to provide the QR Code URL
+- requires `QRauthImage` to provide the QR Code PNG in base64
 
 
 `qr-login-verify.ftl`- for *QR Code Sign In* after the user authenticates, prompts to reject or approve
@@ -129,5 +128,3 @@ It exposes the following to authenticated users:
 
 Keycloak QR Code Authentication (keycloak-extension-qr-code-execution / com.hadleyso.keycloak.qrauth) is distributed under [GNU Affero General Public License v3.0](https://www.gnu.org/licenses/agpl-3.0.txt). Copyright (c) 2025 Hadley So.
 
-
-[`qrcode.min.js`](https://github.com/davidshimjs/qrcodejs) is distributed under [MIT License](https://mit-license.org/) Copyright (c) 2012 davidshimjs

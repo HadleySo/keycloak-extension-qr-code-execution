@@ -7,6 +7,8 @@
         <div id="com-hadleyso-qr-auth-js-target" 
             style='padding-top: 15px; padding-bottom: 15px; width: 45%; <#if alignment == "Center">margin-left: auto; margin-right: auto;<#elseif alignment == "Right">margin-left: auto; </#if>' 
             onClick="document.forms['com-hadleyso-qrcode-${QRauthExecId}'].submit();">
+            <span style="display: none;">${QRauthToken}</span>
+            <img id="com-hadleyso-qr-auth-qr-code" src="data:image/png;base64,${QRauthImage}" alt="Figure: Barcode">
         </div>
 
         <p style="padding-top: 5px; padding-bottom: 5px; font-size: medium;">Session: ${tabId}</p>
@@ -17,9 +19,6 @@
 
     </div>
 
-    
-    <script src="${url.resourcesPath}/js/jquery.min.js"></script>
-    <script src="${url.resourcesPath}/js/qrcode.min.js"></script>
     <script type="text/javascript">
         
 
@@ -39,10 +38,9 @@
             return false;
         };
 
-        if (getUrlParameter('qr_code_originated') == false) {
-            new QRCode(document.getElementById("com-hadleyso-qr-auth-js-target"), "${QRauthToken}");
-        } else {
+        if (getUrlParameter('qr_code_originated') == true) {
             document.getElementById("com-hadleyso-qr-auth").style.display = "none";
         }
     </script>
+    
 </#macro>

@@ -8,7 +8,10 @@
 
         <div id="com-hadleyso-qr-auth-js-target" 
         style='padding-top: 15px; padding-bottom: 15px; width: 45%; <#if alignment == "Center">margin-left: auto; margin-right: auto;<#elseif alignment == "Right">margin-left: auto; </#if>' 
-        onClick="document.forms['com-hadleyso-qrcode-${QRauthExecId}'].submit();"></div>
+        onClick="document.forms['com-hadleyso-qrcode-${QRauthExecId}'].submit();">
+            <span style="display: none;">${QRauthToken}</span>
+            <img id="com-hadleyso-qr-auth-qr-code" src="data:image/png;base64,${QRauthImage}" alt="Figure: Barcode">
+        </div>
 
         <p style="padding-top: 15px; padding-bottom: 15px;"><b>Session: </b>${tabId}</p>
 
@@ -26,10 +29,26 @@
             </script>
         </#if>
 
-        <script src="${url.resourcesPath}/js/jquery.min.js"></script>
-        <script src="${url.resourcesPath}/js/qrcode.min.js"></script>
         <script type="text/javascript">
-            new QRCode(document.getElementById("com-hadleyso-qr-auth-js-target"), "${QRauthToken}");
+            var getUrlParameter = function getUrlParameter(sParam) {
+                var sPageURL = window.location.search.substring(1),
+                    sURLVariables = sPageURL.split('&'),
+                    sParameterName,
+                    i;
+
+                for (i = 0; i < sURLVariables.length; i++) {
+                    sParameterName = sURLVariables[i].split('=');
+
+                    if (sParameterName[0] === sParam) {
+                        return true;
+                    }
+                }
+                return false;
+            };
+
+            if (getUrlParameter('qr_code_originated') == true) {
+                document.getElementById("com-hadleyso-qr-auth").style.display = "none";
+            }
         </script>
     </#if>
 </@layout.registrationLayout>
