@@ -93,6 +93,8 @@ public class QrUsernamePasswordForm extends UsernamePasswordForm {
             }
         }
 
+        String qrImageData = QrUtils.qrCode(link);
+
         // Get execution ID for auto-refresh form
         // and TabID
         String execId = context.getExecution().getId();
@@ -114,6 +116,7 @@ public class QrUsernamePasswordForm extends UsernamePasswordForm {
         formData.add("QRauthToken", link);
         formData.add("tabId", tabId);
         formData.add("alignment", alignment);
+        formData.add("QRauthImage", qrImageData);
 
         String loginHint = context.getAuthenticationSession().getClientNote(OIDCLoginProtocol.LOGIN_HINT_PARAM);
 

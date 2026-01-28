@@ -1,11 +1,14 @@
 package com.hadleyso.keycloak.qrauth;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -42,6 +45,12 @@ import org.jboss.logging.Logger;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.EncodeHintType;
+import com.google.zxing.client.j2se.MatrixToImageWriter;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.qrcode.QRCodeWriter;
+
 import ua_parser.Parser;
 import ua_parser.Client;
 
@@ -386,5 +395,32 @@ public class QrUtils {
         }
 
         
+    }
+
+    /**
+      * Convert string to 246 by 246 QR base64 png image. 
+        Based on org.keycloak.utils.TotpUtils <a href="mailto:sthorger@redhat.com">Stian Thorgersen</a>
+      * @param link String or link to convert
+      * @return QR Code 2D barcode png format in base64
+    */
+    public static String qrCode(String link) {
+        try {
+            int width = 246;
+            int height = 246;
+
+            Map<EncodeHintType, Object> hints = new HashMap<>(); 
+            hints.put(EncodeHintType.MARGIN, 2);
+
+            QRCodeWriter writer = new QRCodeWriter();
+            final BitMatrix bitMatrix = writer.encode(link, BarcodeFormat.QR_CODE, width, height, hints);
+
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            MatrixToImageWriter.writeToStream(bitMatrix, "png", bos);
+            bos.close();
+
+            return Base64.getEncoder().encodeToString(bos.toByteArray());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }
