@@ -255,7 +255,7 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
         RealmModel realm = session.getContext().getRealm();
         AppAuthManager authManager = new AppAuthManager();
         AuthenticationManager.AuthResult auth = authManager.authenticateIdentityCookie(session, realm);
-        UserModel user = auth.getUser();
+        UserModel user = auth.user();
 
         // Get token
         ClientModel qrClient = realm.getClientByClientId(QrUtils.CLIENT_ID);

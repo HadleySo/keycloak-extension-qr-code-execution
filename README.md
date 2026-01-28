@@ -4,9 +4,9 @@
 
 Sign in to Keycloak with another device using QR codes.
 
-This authentication extension for [Keycloak](https://www.keycloak.org/) provides an authentication execution enabling users to complete authentication with another device.
+This extension for [Keycloak](https://www.keycloak.org/) provides an execution enabling users to complete authentication with another device.
 
-With QR code authentication, users can quickly and securely authenticate without typing passwords or sharing passwords on untrusted devices. It also enables usage of Passkeys on devices without Bluetooth by completing authentication with a passkey on a passkey enabled device..
+With QR code authentication, users can authenticate without typing passwords or sharing passwords on untrusted devices. It also allows usage of Passkeys on devices without Bluetooth by completing authentication with a passkey on enabled device.
 
 ## Features
 
@@ -43,7 +43,15 @@ The **Username Password Form with Optional QR Code Login** execution:
 
 
 ## Compatibility
-Compatible with **Keycloak 26.4.x**. Should be compatible with 26.3.x but has not been tested.
+
+|               | **v0.2.x**         | **v0.3.x**         |
+|---------------|--------------------|--------------------|
+| **KC 26.3.x** | :heavy_check_mark: | :heavy_check_mark: |
+| **KC 26.4.x** | :white_check_mark: | :white_check_mark: |
+| **KC 26.5.x** |                    | :white_check_mark: |
+
+:heavy_check_mark: - Not validated  
+:white_check_mark: - Compatible
 
 ## Installation
 
