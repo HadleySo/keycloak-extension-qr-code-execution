@@ -25,6 +25,7 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.utils.KeycloakModelUtils;
+import org.keycloak.protocol.oidc.utils.AcrUtils;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.services.Urls;
 import org.keycloak.services.managers.BruteForceProtector;
@@ -324,20 +325,31 @@ public class QrUtils {
         final AuthenticationSessionModel authSession = context.getAuthenticationSession();
         final AcrStore acrStore = new AcrStore(context.getSession(), authSession);
 
-        if (Boolean.parseBoolean(config.getConfig().get("acr.allow.transfer")) == true) {
-            // Attach ACR
-            String authOkAcrRaw = authSession.getAuthNote(QrUtils.AUTHENTICATED_ACR);
-            int authOkACR = -1;
-            if (authOkAcrRaw != null) {
-                authOkACR = Integer.valueOf(authOkAcrRaw);
+        boolean allowTransfer = Boolean.parseBoolean(config.getConfig().get("acr.allow.transfer"));
+        if (!allowTransfer)
+            return;
 
-                if (authOkACR != -1) {
-                    log.info("QrUtils.handleACR - attaching ACR: " + authOkACR);
-                    acrStore.setLevelAuthenticated(authOkACR);
-                }
-            }
+        // The ACR string previously stored
+        String acrString = authSession.getAuthNote(QrUtils.AUTHENTICATED_ACR);
+        if (acrString == null) {
+            log.info("QrUtils.handleACR - no ACR note found, skipping");
+            return;
         }
+
+
+        Map<String, Integer> acrMap = AcrUtils.getAcrLoaMap(context.getAuthenticationSession().getClient());
+
+
+        Integer acrLevel = acrMap.get(acrString);
+        if (acrLevel == null) {
+            log.warn("QrUtils.handleACR - no mapping found for ACR: " + acrString);
+            return;
+        }
+
+        log.info("QrUtils.handleACR - attaching ACR '" + acrString + "' mapped to level " + acrLevel);
+        acrStore.setLevelAuthenticated(acrLevel);
     }
+
 
     public static Boolean transferAcrEnabled(AuthenticatorConfigModel config) {
         if (config == null)
