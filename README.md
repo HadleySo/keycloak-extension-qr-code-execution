@@ -73,10 +73,10 @@ The **Username Password Form with Optional QR Code Login** execution:
 
 **ACR Transfer**: 
 - When enabled, the required ACR on the originating session will be the required ACR on the device completing authentication. 
-- Once  authenticated, the authenticated ACR level will be set on the originating session.
-- If the device authenticating does not complete the originating ACR level, the originating session ACR value will be set to the ACR level the authenticating device flow was authenticated to. 
+- Once authenticated, the authenticated LoA level will be set on the originating session.
+- The ACR LoA mapping of the originating client will be used when available, otherwise the realm default is used.
 
-| :exclamation:  The device authenticating uses the realm default browser flow, not the client specific flow from the originating session.   |
+| :exclamation:  The device authenticating uses the realm default browser flow, not the client specific flow from the originating session. This can be modified by changing the flow in the `QR Code Login Extension` client.   |
 |-------------------------------------------------------------------------------------------------------------------------------------------|
 
 **Credential Type Transfer**: 
