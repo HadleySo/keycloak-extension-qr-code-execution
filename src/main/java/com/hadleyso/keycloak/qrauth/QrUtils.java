@@ -337,8 +337,7 @@ public class QrUtils {
         }
 
 
-        RealmModel realm = context.getRealm();
-        Map<String, Integer> acrMap = AcrUtils.getAcrLoaMap(realm);
+        Map<String, Integer> acrMap = AcrUtils.getAcrLoaMap(context.getAuthenticationSession().getClient());
 
 
         Integer acrLevel = acrMap.get(acrString);
