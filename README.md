@@ -87,7 +87,7 @@ The **Username Password Form with Optional QR Code Login** execution:
 **Use Short Codes**:
 - When the alternate devices authenticating the user cannot scan a QR code.
 - Provides alternate 6 digit code to use.
-- Data kept in new database table for 24 hours. Contains the 6 digit short code and the QR code token.
+- Data kept in new database table for one hour. Contains the 6 digit short code and the QR code token.
 - Scheduled job removes old codes.
 
 

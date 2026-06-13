@@ -20,7 +20,7 @@ public class ShortCodeCleanupTask implements ScheduledTask {
         long currentTimeMillis = Time.currentTimeMillis();
         
         EntityManager em = session.getProvider(JpaConnectionProvider.class).getEntityManager();
-        Date cutoff = new Date(System.currentTimeMillis() - 12 * 60 * 60 * 1000);
+        Date cutoff = new Date(System.currentTimeMillis() - 60 * 60 * 1000);
 
         int deleted = em.createQuery(
             "DELETE FROM ShortCodeEntity e WHERE e.createdAt < :cutoff"

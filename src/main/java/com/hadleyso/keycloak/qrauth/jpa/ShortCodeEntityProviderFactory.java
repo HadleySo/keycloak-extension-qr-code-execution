@@ -31,11 +31,11 @@ public class ShortCodeEntityProviderFactory implements JpaEntityProviderFactory 
         KeycloakModelUtils.runJobInTransaction(factory, session -> {
             TimerProvider timer = session.getProvider(TimerProvider.class);
 
-            long every12Hours = 12L * 60 * 60 * 1000;
+            long every30Min = 30 * 60 * 1000;
 
             timer.scheduleTask(
                 new ShortCodeCleanupTask(),
-                every12Hours,
+                every30Min,
                 "com-hadleyso-qrauth-shortcode-cleanup-task"
             );
         });
