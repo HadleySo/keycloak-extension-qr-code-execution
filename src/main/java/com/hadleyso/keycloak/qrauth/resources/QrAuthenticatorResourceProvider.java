@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.jboss.logging.Logger;
+import org.keycloak.connections.jpa.JpaConnectionProvider;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.http.simple.SimpleHttp;
 import org.keycloak.http.simple.SimpleHttpRequest;
@@ -28,9 +29,10 @@ import org.keycloak.sessions.AuthenticationSessionProvider;
 import org.keycloak.sessions.RootAuthenticationSessionModel;
 
 import com.hadleyso.keycloak.qrauth.QrUtils;
+import com.hadleyso.keycloak.qrauth.jpa.ShortCodeEntity;
 
 import lombok.extern.jbosslog.JBossLog;
-
+import jakarta.persistence.EntityManager;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.*;
 
@@ -143,6 +145,51 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
         if (logger.isTraceEnabled()) {
             logger.tracef("Serve challenge with ACR: '%s'", originAcrRaw);
         }
+
+        return Response.seeOther(uriBuilder.build()).build();
+
+    }
+
+    @GET
+    @Path("short")
+    @Produces(MediaType.TEXT_HTML)
+    public Response userShortCodeStart() {
+        log.info("QrAuthenticatorResourceProvider.userShortCodeStart");
+
+        // Create form
+        LoginFormsProvider form = session.getProvider(LoginFormsProvider.class);
+        return form.createForm("qr-login-short-start.ftl");
+
+    }
+
+    @POST
+    @Path("short")
+    @Produces(MediaType.TEXT_HTML)
+    public Response userShortCodePost(@FormParam("shortCode") String shortCode) {
+        log.info("QrAuthenticatorResourceProvider.userShortCodePost");
+
+        EntityManager em = session.getProvider(JpaConnectionProvider.class).getEntityManager();
+        ShortCodeEntity entity = em.find(ShortCodeEntity.class, shortCode);
+
+        if (entity == null) {
+            // Create form
+            LoginFormsProvider form = session.getProvider(LoginFormsProvider.class);
+            return form.createForm("qr-login-short-start.ftl");
+        }
+
+        log.info("QrAuthenticatorResourceProvider.userShortCodeStart found SHORTCODE " + shortCode);
+        if (entity.getRealmId() != session.getContext().getRealm().getId()) {
+            LoginFormsProvider form = session.getProvider(LoginFormsProvider.class);
+            return form.createForm("qr-login-short-start.ftl");
+        }
+
+        UriBuilder uriBuilder = UriBuilder.fromUri(session.getContext().getUri().getBaseUri())
+                .path("realms")
+                .path(session.getContext().getRealm().getName())
+                .path(QrAuthenticatorResourceProviderFactory.getStaticId())
+                .path(QrAuthenticatorResourceProvider.class, "loginWithQrCode")
+                .queryParam(QrUtils.TOKEN, entity.getQrValue());
+
 
         return Response.seeOther(uriBuilder.build()).build();
 

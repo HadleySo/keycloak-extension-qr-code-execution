@@ -44,14 +44,14 @@ The **Username Password Form with Optional QR Code Login** execution:
 
 ## Compatibility
 
-|               | **v0.2.x**              | **v0.3.x**         |
-|---------------|-------------------------|--------------------|
-| **KC 26.3.x** | :ballot_box_with_check: |                    |
-| **KC 26.4.x** | :white_check_mark:      |                    |
-| **KC 26.5.x** | :heavy_minus_sign:      | :white_check_mark: |
+|               | **v0.2.x**              | **v0.3.x**         | **v0.4.x**         |
+|---------------|-------------------------|--------------------|--------------------|
+| **KC 26.3.x** | :ballot_box_with_check: |                    |                    |
+| **KC 26.4.x** | :white_check_mark:      |                    |                    |
+| **KC 26.5.x** |                         | :white_check_mark: |                    |
+| **KC 26.6.x** |                         | :white_check_mark: | :white_check_mark: | 
 
 :white_check_mark: - Compatible  
-:heavy_minus_sign: - Patch only  
 :ballot_box_with_check: - Not validated  
 
 ## Installation
@@ -84,6 +84,12 @@ The **Username Password Form with Optional QR Code Login** execution:
 - Useful when the flow has conditions on credential type.
 - Requires the usage of `Remember Credential Type` executor in the flow used by ClientID `com-hadleyso-keycloak-qrauth-rest-client` (typically realm default browser).
 
+**Use Short Codes**:
+- When the alternate devices authenticating the user cannot scan a QR code.
+- Provides alternate 6 digit code to use.
+- Data kept in new database table for one hour. Contains the 6 digit short code and the QR code token.
+- Scheduled job removes old codes.
+
 
 ## Template Themes
 The [ftl templates](src/main/resources/theme-resources/templates) can be overridden. This is optional, unless the *Username Password Form with Optional QR Code Login* execution is used in a realm with a custom theme.
@@ -100,6 +106,9 @@ The [ftl templates](src/main/resources/theme-resources/templates) can be overrid
 `qr-login-verify.ftl`- for *QR Code Sign In* after the user authenticates, prompts to reject or approve
 - requires `${approveURL}` to approve the sign in and `${rejectURL}` to reject.
 - optional originating device info: `${ua_device}`, `${ua_os}`, `${ua_agent}`, and `${local_localized}`
+
+`qr-login-short-start.ftl` - when *Short Codes* are enabled
+- Does not require any variables
 
 #### Messages
 

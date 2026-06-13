@@ -21,6 +21,7 @@ import org.keycloak.authentication.AuthenticatorUtil;
 import org.keycloak.authentication.authenticators.util.AcrStore;
 import org.keycloak.common.ClientConnection;
 import org.keycloak.common.util.Base64Url;
+import org.keycloak.connections.jpa.JpaConnectionProvider;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
@@ -35,9 +36,12 @@ import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.ClientScopeModel;
 
+import com.hadleyso.keycloak.qrauth.jpa.ShortCodeEntity;
 import com.hadleyso.keycloak.qrauth.resources.QrAuthenticatorResourceProvider;
 import com.hadleyso.keycloak.qrauth.resources.QrAuthenticatorResourceProviderFactory;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceException;
 import jakarta.ws.rs.core.UriBuilder;
 import jakarta.ws.rs.core.UriInfo;
 import lombok.extern.jbosslog.JBossLog;
@@ -66,6 +70,7 @@ public class QrUtils {
     public static final String AUTHENTICATED_CREDENTIALS_AGE = "COM-HADLEYSO-KEYCLOAK-QRAUTH-AUTHENTICATED_CREDENTIALS_AGE";
     public static final String BRUTE_FORCE_USER_ID = "BRUTE_FORCE_USER_ID";
     public static final String NOTE_QR_LINK = "QR-LINK-PUBLIC";
+    public static final String NOTE_SHORT_CODE = "QR-SHORT-CODE";
     public static final String REJECT = "REJECT";
     public static final String TIMEOUT = "TIMEOUT";
 
@@ -84,7 +89,7 @@ public class QrUtils {
     public static final List<ProviderConfigProperty> configProperties = new ArrayList<ProviderConfigProperty>();
 
     private static final Logger logger = Logger.getLogger(QrUtils.class);
-    
+
     static {
         ProviderConfigProperty refreshProperty = new ProviderConfigProperty();
         refreshProperty.setName("refresh.rate");
@@ -134,6 +139,17 @@ public class QrUtils {
         credentialProperty.setRequired(true);
         credentialProperty.setDefaultValue(false);
         configProperties.add(credentialProperty);
+
+        ProviderConfigProperty enableShortCode = new ProviderConfigProperty();
+        enableShortCode.setName("short.enable");
+        enableShortCode.setLabel("Enable Short Codes");
+        enableShortCode.setType(ProviderConfigProperty.BOOLEAN_TYPE);
+        enableShortCode.setHelpText(
+                "Enable users to use a 6 digit short code when the QR code cannot be scanned.");
+        enableShortCode.setRequired(true);
+        enableShortCode.setDefaultValue(false);
+        configProperties.add(enableShortCode);
+
     }
 
     public static String serializeList(List<String> values) {
@@ -167,7 +183,7 @@ public class QrUtils {
         // Get ACR
         AcrStore acrStore = new AcrStore(context.getSession(), authSession);
         int reqAcr = acrStore.getRequestedLevelOfAuthentication(context.getTopLevelFlow());
-        String noteACR = setACR ? String.valueOf(reqAcr): "";
+        String noteACR = setACR ? String.valueOf(reqAcr) : "";
 
         authSession.setAuthNote(ORIGIN_UA_AGENT, ua_agent);
         authSession.setAuthNote(ORIGIN_UA_OS, ua_os);
@@ -225,6 +241,35 @@ public class QrUtils {
         }
 
         return Base64Url.encode(sessionIdInfoJson.getBytes());
+    }
+
+    public static String createShortCode(KeycloakSession session, String publicToken) {
+
+        EntityManager em = session.getProvider(JpaConnectionProvider.class)
+                .getEntityManager();
+
+        for (int attempt = 0; attempt < 5; attempt++) {
+
+            final String code = String.valueOf(100000 + new java.util.Random().nextInt(900000));
+
+            try {
+                ShortCodeEntity entity = new ShortCodeEntity();
+                entity.setCode(code);
+                entity.setRealmId(session.getContext().getRealm().getId());
+                entity.setQrValue(publicToken);
+
+                em.persist(entity);
+                em.flush(); // force constraint check
+
+                return code;
+
+            } catch (PersistenceException e) {
+                // Collision, try again
+            }
+        }
+
+        throw new IllegalStateException(
+                "Unable to generate unique short code after 5 attempts");
     }
 
     public static Map<String, String> decodePublicToken(String token) {
@@ -336,9 +381,7 @@ public class QrUtils {
             return;
         }
 
-
         Map<String, Integer> acrMap = AcrUtils.getAcrLoaMap(context.getAuthenticationSession().getClient());
-
 
         Integer acrLevel = acrMap.get(acrString);
         if (acrLevel == null) {
@@ -350,7 +393,6 @@ public class QrUtils {
         acrStore.setLevelAuthenticated(acrLevel);
     }
 
-
     public static Boolean transferAcrEnabled(AuthenticatorConfigModel config) {
         if (config == null)
             return false;
@@ -358,11 +400,12 @@ public class QrUtils {
     }
 
     /**
-      * Transfers credentials used to an originating session if enabled
-      * @param config Configuration of the current authenticator 
-      * @param context Originating session context
-      * @return description
-    */
+     * Transfers credentials used to an originating session if enabled
+     * 
+     * @param config  Configuration of the current authenticator
+     * @param context Originating session context
+     * @return description
+     */
     public static void handleCredTransfer(AuthenticatorConfigModel config, AuthenticationFlowContext context) {
         if (logger.isTraceEnabled()) {
             logger.tracef("Handling credential transfer to origin session");
@@ -380,8 +423,8 @@ public class QrUtils {
         String userId = authSession.getAuthNote(QrUtils.AUTHENTICATED_USER_ID);
         UserModel user = context.getSession().users().getUserById(context.getRealm(), userId);
 
-
-        if (user == null) return;
+        if (user == null)
+            return;
 
         // Retrieve from user attribute
         String authOkCredentialsRaw = user.getFirstAttribute(QrUtils.AUTHENTICATED_CREDENTIALS);
@@ -406,21 +449,22 @@ public class QrUtils {
             AuthenticatorUtil.addAuthCredential(authSession, authOkCredential);
         }
 
-        
     }
 
     /**
-      * Convert string to 246 by 246 QR base64 png image. 
-        Based on org.keycloak.utils.TotpUtils <a href="mailto:sthorger@redhat.com">Stian Thorgersen</a>
-      * @param link String or link to convert
-      * @return QR Code 2D barcode png format in base64
-    */
+     * Convert string to 246 by 246 QR base64 png image.
+     * Based on org.keycloak.utils.TotpUtils
+     * <a href="mailto:sthorger@redhat.com">Stian Thorgersen</a>
+     * 
+     * @param link String or link to convert
+     * @return QR Code 2D barcode png format in base64
+     */
     public static String qrCode(String link) {
         try {
             int width = 246;
             int height = 246;
 
-            Map<EncodeHintType, Object> hints = new HashMap<>(); 
+            Map<EncodeHintType, Object> hints = new HashMap<>();
             hints.put(EncodeHintType.MARGIN, 2);
 
             QRCodeWriter writer = new QRCodeWriter();

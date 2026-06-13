@@ -7,10 +7,14 @@ import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.services.Urls;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
 import com.hadleyso.keycloak.qrauth.QrUtils;
+import com.hadleyso.keycloak.qrauth.resources.QrAuthenticatorResourceProvider;
+import com.hadleyso.keycloak.qrauth.resources.QrAuthenticatorResourceProviderFactory;
 
+import jakarta.ws.rs.core.UriBuilder;
 import lombok.extern.jbosslog.JBossLog;
 import org.jboss.logging.Logger;
 
@@ -81,6 +85,13 @@ public class QrAuthenticator implements Authenticator {
 
         // Check if already made
         String link = authSession.getAuthNote(QrUtils.NOTE_QR_LINK);
+        String shortCode = authSession.getAuthNote(QrUtils.NOTE_SHORT_CODE);
+
+        // Get short code enable
+        Boolean shortEnable = false;
+        if (config != null) {
+            shortEnable = Boolean.valueOf(config.getConfig().get("short.enable"));
+        }
 
         if (link == null) {
             // Create token and convert to link
@@ -91,9 +102,16 @@ public class QrAuthenticator implements Authenticator {
             }
             link = QrUtils.linkFromActionToken(context.getSession(), context.getRealm(), token, false);
             authSession.setAuthNote(QrUtils.NOTE_QR_LINK, link);
+            if (shortEnable) {
+                shortCode = QrUtils.createShortCode(session, token);
+                authSession.setAuthNote(QrUtils.NOTE_SHORT_CODE, shortCode);
+            }
             if (logger.isTraceEnabled()) {
                 logger.tracef("Created new token with link - token: '%s;", token);
             }
+        }
+        if (shortCode == null){
+            shortCode = "";
         }
 
         String qrImageData = QrUtils.qrCode(link);
@@ -120,6 +138,15 @@ public class QrAuthenticator implements Authenticator {
                 alignment = "Center";
         }
 
+        // Create short code endpoint
+        UriBuilder uriBuilder = UriBuilder.fromUri(session.getContext().getUri().getBaseUri())
+                .path("realms")
+                .path(session.getContext().getRealm().getName())
+                .path(QrAuthenticatorResourceProviderFactory.getStaticId())
+                .path(QrAuthenticatorResourceProvider.class, "userShortCodeStart");
+
+        String shortCodeLink = uriBuilder.build().toString();
+
         if (logger.isTraceEnabled()) {
             logger.tracef("Serving session '%s' with tabId '%s' with token in link: '%s;", execId, tabId, link);
         }
@@ -132,6 +159,8 @@ public class QrAuthenticator implements Authenticator {
                         .setAttribute("refreshRate", refreshRate)
                         .setAttribute("alignment", alignment)
                         .setAttribute("QRauthImage", qrImageData)
+                        .setAttribute("ShortCode", shortCode)
+                        .setAttribute("ShortCodeLink", shortCodeLink)
                         .createForm("qr-login-scan.ftl"));
     }
 

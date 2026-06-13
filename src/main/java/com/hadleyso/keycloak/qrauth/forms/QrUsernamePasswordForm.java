@@ -14,10 +14,13 @@ import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
 import com.hadleyso.keycloak.qrauth.QrUtils;
+import com.hadleyso.keycloak.qrauth.resources.QrAuthenticatorResourceProvider;
+import com.hadleyso.keycloak.qrauth.resources.QrAuthenticatorResourceProviderFactory;
 
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriBuilder;
 import lombok.extern.jbosslog.JBossLog;
 import org.jboss.logging.Logger;
 
@@ -78,6 +81,13 @@ public class QrUsernamePasswordForm extends UsernamePasswordForm {
 
         // Check if already made
         String link = authSession.getAuthNote(QrUtils.NOTE_QR_LINK);
+        String shortCode = authSession.getAuthNote(QrUtils.NOTE_SHORT_CODE);
+
+        // Get short code enable
+        Boolean shortEnable = false;
+        if (config != null) {
+            shortEnable = Boolean.valueOf(config.getConfig().get("short.enable"));
+        }
 
         if (link == null) {
             // Create token and convert to link
@@ -88,9 +98,16 @@ public class QrUsernamePasswordForm extends UsernamePasswordForm {
             }
             link = QrUtils.linkFromActionToken(context.getSession(), context.getRealm(), token, true);
             authSession.setAuthNote(QrUtils.NOTE_QR_LINK, link);
+            if (shortEnable) {
+                shortCode = QrUtils.createShortCode(session, token);
+                authSession.setAuthNote(QrUtils.NOTE_SHORT_CODE, shortCode);
+            }
             if (logger.isTraceEnabled()) {
                 logger.tracef("Created new token with link - token: '%s;", token);
             }
+        }
+        if (shortCode == null){
+            shortCode = "";
         }
 
         String qrImageData = QrUtils.qrCode(link);
@@ -108,6 +125,15 @@ public class QrUsernamePasswordForm extends UsernamePasswordForm {
                 alignment = "Center";
         }
 
+        // Create short code endpoint
+        UriBuilder uriBuilder = UriBuilder.fromUri(session.getContext().getUri().getBaseUri())
+                .path("realms")
+                .path(session.getContext().getRealm().getName())
+                .path(QrAuthenticatorResourceProviderFactory.getStaticId())
+                .path(QrAuthenticatorResourceProvider.class, "userShortCodeStart");
+
+        String shortCodeLink = uriBuilder.build().toString();
+
         // https://github.com/keycloak/keycloak/blob/39c4c1ed942a4bdcc0a3c4d68a9b853a082ea9a2/services/src/main/java/org/keycloak/authentication/authenticators/browser/UsernamePasswordForm.java#L127-L133
 
         MultivaluedMap<String, String> formData = new MultivaluedHashMap<>();
@@ -116,7 +142,9 @@ public class QrUsernamePasswordForm extends UsernamePasswordForm {
         formData.add("QRauthToken", link);
         formData.add("tabId", tabId);
         formData.add("alignment", alignment);
+        formData.add("ShortCode", shortCode);
         formData.add("QRauthImage", qrImageData);
+        formData.add("ShortCodeLink", shortCodeLink);
 
         String loginHint = context.getAuthenticationSession().getClientNote(OIDCLoginProtocol.LOGIN_HINT_PARAM);
 
