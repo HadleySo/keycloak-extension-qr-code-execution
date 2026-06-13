@@ -21,6 +21,7 @@ import org.keycloak.authentication.AuthenticatorUtil;
 import org.keycloak.authentication.authenticators.util.AcrStore;
 import org.keycloak.common.ClientConnection;
 import org.keycloak.common.util.Base64Url;
+import org.keycloak.connections.jpa.JpaConnectionProvider;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
@@ -35,9 +36,11 @@ import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.ClientScopeModel;
 
+import com.hadleyso.keycloak.qrauth.jpa.ShortCodeEntity;
 import com.hadleyso.keycloak.qrauth.resources.QrAuthenticatorResourceProvider;
 import com.hadleyso.keycloak.qrauth.resources.QrAuthenticatorResourceProviderFactory;
 
+import jakarta.persistence.EntityManager;
 import jakarta.ws.rs.core.UriBuilder;
 import jakarta.ws.rs.core.UriInfo;
 import lombok.extern.jbosslog.JBossLog;
@@ -66,6 +69,7 @@ public class QrUtils {
     public static final String AUTHENTICATED_CREDENTIALS_AGE = "COM-HADLEYSO-KEYCLOAK-QRAUTH-AUTHENTICATED_CREDENTIALS_AGE";
     public static final String BRUTE_FORCE_USER_ID = "BRUTE_FORCE_USER_ID";
     public static final String NOTE_QR_LINK = "QR-LINK-PUBLIC";
+    public static final String NOTE_SHORT_CODE = "QR-SHORT-CODE";
     public static final String REJECT = "REJECT";
     public static final String TIMEOUT = "TIMEOUT";
 
@@ -134,6 +138,17 @@ public class QrUtils {
         credentialProperty.setRequired(true);
         credentialProperty.setDefaultValue(false);
         configProperties.add(credentialProperty);
+
+        ProviderConfigProperty enableShortCode = new ProviderConfigProperty();
+        enableShortCode.setName("short.enable");
+        enableShortCode.setLabel("Enable Short Codes");
+        enableShortCode.setType(ProviderConfigProperty.BOOLEAN_TYPE);
+        enableShortCode.setHelpText(
+                "Enable users to use a 6 digit short code when the QR code cannot be scanned.");
+        enableShortCode.setRequired(true);
+        enableShortCode.setDefaultValue(false);
+        configProperties.add(enableShortCode);
+
     }
 
     public static String serializeList(List<String> values) {
@@ -225,6 +240,20 @@ public class QrUtils {
         }
 
         return Base64Url.encode(sessionIdInfoJson.getBytes());
+    }
+
+    public static String createShortCode(KeycloakSession session, String publicToken) {
+
+        final String code =  String.valueOf(100000 + new java.util.Random().nextInt(900000));
+
+        EntityManager em = session.getProvider(JpaConnectionProvider.class).getEntityManager();
+        ShortCodeEntity entity = null; //TODO
+        entity.setCode(code);
+        entity.setRealmId(session.getContext().getRealm().getId());
+        entity.setQrValue(publicToken);
+        em.persist(entity);
+        
+        return code;
     }
 
     public static Map<String, String> decodePublicToken(String token) {

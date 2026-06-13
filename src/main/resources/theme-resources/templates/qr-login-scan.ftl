@@ -13,11 +13,27 @@
             <img id="com-hadleyso-qr-auth-qr-code" src="data:image/png;base64,${QRauthImage}" alt="Figure: Barcode">
         </div>
 
-        <p style="padding-top: 15px; padding-bottom: 15px;"><b>Session: </b>${tabId}</p>
+        <p style="padding-top: 15px; padding-bottom: 15px;">
+        <b>Session: </b>${tabId}
+        </p>
+        <#if ShortCode != "">
+        <p style="padding-bottom: 15px;" id="com-hadleyso-qr-auth-short-zone">
+        <a href="#" id="com-hadleyso-qr-auth-short-start">${msg("CannotScan")}</a> | <a href="${ShortCodeLink}">${msg("UseShortCode")}</a>
+        </p>
+        </#if>
+
+
+        <#if ShortCode != "">
+        <p style="padding-top: 15px; padding-bottom: 15px; display: none;" id="com-hadleyso-qr-auth-short-message">
+        ${msg("doShortCodeSteps")}
+        <br><br>
+        <b>Short Code:</b> ${ShortCode}
+        </p>
+        </#if>
 
         <form id="com-hadleyso-qrcode-${QRauthExecId}" class="${properties.kcFormClass!}" action="${url.loginAction}" method="post">
             <input type="hidden" name="authenticationExecution" value="${QRauthExecId}">
-            <input type="submit" value="${msg("doLogIn")}" class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonLargeClass!}"/>
+            <input type="submit" value="${msg('doLogIn')}" class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonLargeClass!}"/>
         </form>
 
         <#if refreshRate != 0>
@@ -50,5 +66,14 @@
                 document.getElementById("com-hadleyso-qr-auth").style.display = "none";
             }
         </script>
+        <#if ShortCode != "">
+            <script type="text/javascript">
+                document.getElementById("com-hadleyso-qr-auth-short-start").addEventListener("click", function () {
+                    document.getElementById("com-hadleyso-qr-auth-js-target").style.display = "none";
+                    document.getElementById("com-hadleyso-qr-auth-short-zone").style.display = "none";
+                    document.getElementById("com-hadleyso-qr-auth-short-message").style.display = "block";
+                });
+            </script>
+        </#if>
     </#if>
 </@layout.registrationLayout>
