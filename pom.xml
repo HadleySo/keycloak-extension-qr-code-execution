@@ -6,7 +6,7 @@
   <groupId>com.hadleyso.keycloak</groupId>
   <artifactId>keycloak-qr-code-login</artifactId>
   <packaging>jar</packaging>
-  <version>0.3.1-SNAPSHOT</version>
+  <version>0.4.0-SNAPSHOT</version>
 
   <name>Keycloak QR Code Login</name>
   <description>QR Code execution extension</description>
@@ -23,7 +23,7 @@
     <java.version>21</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <main.java.package>com.hadleyso.keycloak.qrauth</main.java.package>
-    <keycloak.version>26.5.6</keycloak.version>
+    <keycloak.version>[26.5,26.6)</keycloak.version>
     <lombok.version>1.18.38</lombok.version>
   </properties>
 
@@ -71,7 +71,7 @@
     </dependency>
     <dependency>
       <groupId>org.keycloak</groupId>
-      <artifactId>keycloak-server-spi-private</artifactId>
+      <artifactId>keycloak-model-jpa</artifactId>
       <version>${keycloak.version}</version>
       <scope>provided</scope>
     </dependency>
