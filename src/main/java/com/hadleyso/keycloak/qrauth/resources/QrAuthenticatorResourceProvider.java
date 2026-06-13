@@ -178,7 +178,8 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
         }
 
         log.info("QrAuthenticatorResourceProvider.userShortCodeStart found SHORTCODE " + shortCode);
-        if (entity.getRealmId() != session.getContext().getRealm().getId()) {
+        if (!entity.getRealmId().equals(session.getContext().getRealm().getId())) {
+            log.info("QrAuthenticatorResourceProvider.userShortCodeStart shortcode different realms " + entity.getRealmId() + " " + session.getContext().getRealm().getId());
             LoginFormsProvider form = session.getProvider(LoginFormsProvider.class);
             return form.createForm("qr-login-short-start.ftl");
         }
