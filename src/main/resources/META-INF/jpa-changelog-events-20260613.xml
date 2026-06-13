@@ -3,7 +3,7 @@
   <changeSet author="Hadley So" id="20260613-1">
     <createTable tableName="AO_HADLEYSO_QR_SHORTCODE">
       <column name="CODE" type="VARCHAR(9)">
-        <constraints nullable="false"/>
+        <constraints nullable="false" unique="true" />
       </column>
       <column name="QR_VALUE" type="VARCHAR(2048)">
         <constraints nullable="false"/>
