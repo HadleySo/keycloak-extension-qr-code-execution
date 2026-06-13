@@ -247,7 +247,7 @@ public class QrUtils {
         final String code =  String.valueOf(100000 + new java.util.Random().nextInt(900000));
 
         EntityManager em = session.getProvider(JpaConnectionProvider.class).getEntityManager();
-        ShortCodeEntity entity = null; //TODO
+        ShortCodeEntity entity = new ShortCodeEntity();
         entity.setCode(code);
         entity.setRealmId(session.getContext().getRealm().getId());
         entity.setQrValue(publicToken);

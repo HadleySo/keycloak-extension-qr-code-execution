@@ -169,7 +169,7 @@ public class QrAuthenticatorResourceProvider implements RealmResourceProvider {
         log.info("QrAuthenticatorResourceProvider.userShortCodePost");
 
         EntityManager em = session.getProvider(JpaConnectionProvider.class).getEntityManager();
-        ShortCodeEntity entity = null; //TODO
+        ShortCodeEntity entity = em.find(ShortCodeEntity.class, shortCode);
 
         if (entity == null) {
             // Create form
